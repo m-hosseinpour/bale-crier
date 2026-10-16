@@ -9,6 +9,10 @@ def test_smoke_producer_has_a_name():
     assert SmokeProducer().name == "smoke"
 
 
+def test_the_smoke_producer_does_not_own_a_timer():
+    assert SmokeProducer().own_timer is False
+
+
 def test_it_produces_exactly_one_smoke_bulletin():
     bulletins = SmokeProducer().produce(NOW)
 

@@ -1,0 +1,26 @@
+; bale-crier credit watcher — user-level systemd unit (one hourly check).
+;
+; Install to ~/.config/systemd/user/, then:
+;   systemctl --user daemon-reload && systemctl --user enable --now bale-crier-credit.timer
+;
+; The timer is what schedules this oneshot; this unit is deliberately static and has no
+; [Install] section, so enabling the service alone does nothing.
+;
+; --only credit is what keeps the two timers from racing over one latch: the daily unit
+; runs everything else, and this one runs the watcher alone.
+;
+; WorkingDirectory matters: the default watchers_state_path and history_path are relative,
+; and a run started elsewhere would keep its latch in the wrong place. It is also where the
+; .env holding the token, the chat id and CRIER_AVALAI_API_KEY is read from.
+;
+; Linger must be on — `sudo loginctl enable-linger $USER` — otherwise the user manager
+; (and this timer with it) is torn down when the last session ends.
+
+[Unit]
+Description=check the AvalAI credit once
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/mahdi/workspace/bale-crier/
+ExecStart=/home/mahdi/workspace/bale-crier/.venv/bin/python -m bale_crier --only credit
+Environment=PYTHONUNBUFFERED=1

@@ -1,7 +1,8 @@
 """Producers: what a run asks for bulletins right now.
 
-A producer is one kind of message. Milestone 1 has the smoke producer alone;
-the AvalAI credit watcher and the note-list reader register here later.
+A producer is one kind of message. The smoke producer lives here; the ones that
+need settings or a memory to write to — the credit watcher today, the note-list
+reader later — are built in ``run.build_producers``.
 """
 
 from datetime import datetime
@@ -12,6 +13,9 @@ from .models import Bulletin
 
 class Producer(Protocol):
     name: str
+    # A producer that runs on a timer of its own sets this, and the daily run
+    # leaves it out — two timers must not race over one latch.
+    own_timer: bool = False
 
     def produce(self, now: datetime) -> list[Bulletin]: ...
 
@@ -20,6 +24,7 @@ class SmokeProducer:
     """One fixed test bulletin, so the path can be proved after a deploy."""
 
     name = "smoke"
+    own_timer = False
 
     def produce(self, now: datetime) -> list[Bulletin]:
         return [

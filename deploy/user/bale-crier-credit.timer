@@ -1,0 +1,22 @@
+; bale-crier credit timer — user-level. See bale-crier-credit.service for the install notes.
+;
+; This timer, not the service, is the unit to enable:
+;   systemctl --user enable --now bale-crier-credit.timer
+;
+; Hourly, with a two-minute spread rather than the daily unit's ten: an hourly check has
+; less room to spread into. The latch, not the check, is what keeps a repeated look from
+; becoming a repeated message, so checking often costs nothing.
+;
+; The daily bale-crier.timer does not run the credit watcher — it owns this timer — so the
+; two timers cannot race over one latch.
+
+[Unit]
+Description=Check the AvalAI credit hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

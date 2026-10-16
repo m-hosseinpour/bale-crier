@@ -84,18 +84,23 @@ and registering it — not editing the run loop, the sender, or the history.
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Note, Bulletin, SendResult
+  models.py      Note, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
   producers.py   the Producer protocol; a registry joins when a second producer does
   bale.py        the sender (sendMessage today; media later)
   history.py     append-only JSONL with a size cap
+  memory.py      where a watcher keeps its own state across runs
+  credit.py      the AvalAI credit endpoint, parsed into numbers
   llm.py         the AvalAI client (needed once notes land)
   run.py         one run: gather, send, record
   cli.py         the entry point
   watchers/      one module per watcher; avalai_credit.py is the first
   notes/         reading the lists, choosing a note, rewording it
-deploy/user/bale-crier.service + .timer
+deploy/user/bale-crier.service + .timer          the daily bulletins
+deploy/user/bale-crier-credit.service + .timer   the hourly credit check
 lists/           the owner's content (gitignored)
+lists.example/   the list format, committed
 data/history.jsonl
+data/watchers.json
 tests/
 ```
 
@@ -104,6 +109,9 @@ tests/
 - `Note` — `list_name`, `id`, `text`.
 - `Bulletin` — `kind` (`alert` | `note`, more later), `text`, `note_id` optional.
 - history line — `{ts, kind, list_name, note_id, text, ok}`.
+- watcher memory — one JSON object per producer name, in
+  `CRIER_WATCHERS_STATE_PATH`. Its contents are the producer's own business; the
+  store only loads, hands out and saves it.
 
 ## Choosing a note
 
@@ -159,8 +167,14 @@ work. Checked on 2026-10-17 on systemd 255: a timer whose `OnCalendar` was
 calendar spec. Changing the times means editing the unit and running
 `systemctl --user daemon-reload`; the unit's own comments say so.
 
-Each run sends every alert that is due plus **one** note bulletin — with two or
-three runs a day that is the owner's "several per day".
+Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
+producer has no timer of its own — with two or three runs a day that is the
+owner's "several per day". The credit watcher has a timer of its own, so it is
+not part of those runs.
+
+There are therefore two timers: `bale-crier.timer` for the daily bulletins, and
+`bale-crier-credit.timer`, hourly, which runs the same program narrowed with
+`--only credit`.
 
 ## Configuration
 
@@ -174,6 +188,9 @@ three runs a day that is the owner's "several per day".
 | `CRIER_NOTE_FLOOR_DAYS` | the no-repeat floor |
 | `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM |
 | `CRIER_AVALAI_API_KEY` | what the credit watcher reads |
+| `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |
+| `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
+| `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` | how often an unreadable credit may speak (default 24) |
 
 Settings go through `pydantic-settings`, which gives validation and the
 `CRIER_` prefix in one place.
@@ -181,19 +198,57 @@ Settings go through `pydantic-settings`, which gives validation and the
 ## The credit watcher
 
 `GET https://api.avalai.ir/user/v1/credit` with `Authorization: Bearer <key>`
-returns `remaining_irt` plus `credit_sources.packages[]`, with the numbers
-arriving as strings.
+returns `remaining_irt` (the main balance) plus `credit_sources.packages[]`, with
+the numbers arriving as strings. The project calls it directly rather than
+shelling out to `~/.config/opencode/scripts/avalai-credit.py` (owner's ruling,
+2026-10-17): that directory is agent tooling on a laptop, and a server daemon
+should not depend on it. Only a fraction of what that script does is needed here.
 
-The watcher inherits a rule the owner already set: **"I cannot tell" is never
-announced as "the credit is gone"**. A failed read is a failure, not an empty
-account. It reports the numbers and gives no buying advice and no "nearly out"
-colour of its own.
+**The number the threshold watches** is whatever is paying right now: the active
+tier's spendable balance — daily first, then weekly, then unclassified — or the
+main balance when no package is live. A package is spendable when its remaining
+is above zero and its end date has not passed. Summing a tier is deliberate: two
+daily packages can coexist when a new one is bought before the old one drains,
+and the provider's order of consumption between them is not documented.
+
+**The alert is a threshold with a latch** (owner's ruling, 2026-10-17), not a
+"reached zero" event:
+
+- below `CRIER_CREDIT_THRESHOLD_IRT` while the latch is armed → one alert, and
+  the latch is set;
+- at or above the threshold → the latch re-arms.
+
+So the alert fires once per crossing. Buying a package lifts the balance back
+over the threshold and re-arms the latch, so the next crossing alerts again. It
+also means the very first run on an already-low balance speaks immediately.
+
+The latch has to outlive the process, so a watcher keeps a small blob of its own
+in `CRIER_WATCHERS_STATE_PATH`. That is deliberately **not** the history: the
+history records what the owner read, and nothing else.
+
+**A failed read is its own bulletin**, at most once every
+`CRIER_CREDIT_UNKNOWN_ALERT_HOURS` hours, and it says what happened: the credit
+could not be read, which is not the same as the credit being gone. The owner's
+rule stands — "I cannot tell" is never announced as "the credit is gone". Staying
+silent was the alternative and was rejected: a watcher that breaks and says
+nothing is a watcher nobody notices is broken.
+
+The bulletin reports the numbers, with no buying advice and no "nearly out"
+colour of its own. The threshold is the owner's, not the bot's.
+
+**It runs hourly, on its own timer.** A threshold crossed at 09:00 should not
+wait for the afternoon. Checking often costs nothing, because the latch — not the
+check — is what keeps a repeated look from becoming a repeated message. A
+producer that owns a timer of its own says so (`own_timer`), and the daily run
+leaves it out so the two timers cannot race over the same latch.
 
 ## Milestones
 
 1. **The path end to end.** Skeleton, config, the Bale sender, the history, one
    hardcoded bulletin, and the timer — a message that really lands in Bale.
-2. **The first real bulletin.** The AvalAI credit watcher.
+2. **The first real bulletin.** The AvalAI credit watcher: the endpoint parsed
+   into numbers, the threshold and its latch, the watcher memory that lets the
+   latch outlive a run, and a timer of its own.
 3. **The owner's lists.** Reading the lists, choosing a note, rewording it.
 
 Each milestone carries its own pytest tests. Milestone 1 is not "done" until a
@@ -214,6 +269,7 @@ once per milestone.
 - Which other watchers the owner wants, beyond AvalAI credit. Only that one is
   named so far.
 - Whether a note's motivational addition should be bounded, and how.
-- The exact fixed times and how many runs a day.
+- The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
+  confirmed; the hourly credit check needs no confirmation.
 - Whether news summaries move here from `bale-news-digest`, or stay there and
   are consumed. Exactly one must win when that work starts.

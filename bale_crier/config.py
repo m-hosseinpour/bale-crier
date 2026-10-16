@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     open_ai_model: str = "deepseek-v4-flash"
     open_ai_api_key: str | None = None
     avalai_api_key: str | None = None
+    credit_threshold_irt: float = Field(default=50_000, ge=0)
+    watchers_state_path: Path = Path("data/watchers.json")
+    # Bounded above zero: a window of zero would speak on every failed read.
+    credit_unknown_alert_hours: float = Field(default=24, gt=0)
 
 
 def _message(error: dict) -> str:

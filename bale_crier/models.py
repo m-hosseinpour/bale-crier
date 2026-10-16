@@ -9,6 +9,32 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class Package(BaseModel):
+    """One credit pot the provider lists: a daily, weekly or unclassified package."""
+
+    tier: str
+    name: str
+    remaining_irt: float | None
+    amount_irt: float | None
+    end_date: datetime | None
+    spendable: bool
+
+
+class CreditReport(BaseModel):
+    """The credit endpoint, parsed into numbers.
+
+    ``active_remaining_irt`` is the number the threshold watches: the active
+    tier's spendable balance, or the main balance when no package is live. It is
+    ``None`` when neither could be read — a failure, never a zero balance.
+    """
+
+    main_balance_irt: float | None
+    packages: list[Package]
+    tier_remaining: dict[str, float]
+    active_tier: str | None
+    active_remaining_irt: float | None
+
+
 class SendResult(BaseModel):
     """The outcome of one call to Bale. A failure is a value, never an exception."""
 

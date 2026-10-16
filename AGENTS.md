@@ -7,8 +7,8 @@ lists, reworded and varied by an LLM a few times a day. Lessons and news summari
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** milestone 1 (the path end to end) is done and deployed; milestone 2 (the AvalAI credit
-watcher) is next.
+**Status:** milestones 1 and 2 are done and deployed — the path end to end, and the AvalAI credit
+watcher. Milestone 3 (the owner's lists) is next.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must
@@ -47,7 +47,7 @@ bulletin's text, and the history records both facts separately.
 | install | `uv sync` |
 | test | `uv run pytest` |
 | one run | `uv run python -m bale_crier` |
-| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer` |
+| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer bale-crier-credit.timer` |
 
 Linger must be on — `sudo loginctl enable-linger $USER` — or the user timer is torn down with the
 last session.
