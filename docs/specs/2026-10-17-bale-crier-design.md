@@ -65,7 +65,7 @@ Append-only means no partial rewrite and no schema migration; a size cap trims i
 to the last N lines when it grows past the limit, so it cannot fill the disk.
 Path and cap are `CRIER_HISTORY_PATH` and `CRIER_HISTORY_MAX_LINES`.
 
-A line carries: `ts`, `kind`, `list`, `note_id`, `text`, `ok`. The last-sent time
+A line carries: `ts`, `kind`, `list_name`, `note_id`, `text`, `ok`. The last-sent time
 per note is read straight out of this file — there is no separate "sent" flag in
 the content.
 
@@ -85,7 +85,7 @@ and registering it — not editing the run loop, the sender, or the history.
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
   models.py      Note, Bulletin, SendResult
-  producers.py   the Producer protocol and the registry
+  producers.py   the Producer protocol; a registry joins when a second producer does
   bale.py        the sender (sendMessage today; media later)
   history.py     append-only JSONL with a size cap
   llm.py         the AvalAI client (needed once notes land)
@@ -103,7 +103,7 @@ tests/
 
 - `Note` — `list_name`, `id`, `text`.
 - `Bulletin` — `kind` (`alert` | `note`, more later), `text`, `note_id` optional.
-- history line — `{ts, kind, list, note_id, text, ok}`.
+- history line — `{ts, kind, list_name, note_id, text, ok}`.
 
 ## Choosing a note
 
@@ -148,9 +148,16 @@ it must take commands or acknowledgements, which it does not.
 
 A `Type=oneshot` systemd **user** service plus a timer, the shape
 `bale-news-digest` already runs. Two or three `OnCalendar` entries a day at fixed
-times, with `RandomizedDelaySec` for a little spread. Times live in the
-environment, not hardcoded. A timer survives a restart with nothing lost, and
-needs no resident process.
+times, with `RandomizedDelaySec` for a little spread. A timer survives a restart
+with nothing lost, and needs no resident process.
+
+The times are written **literally in `deploy/user/bale-crier.timer`**, not read
+from the environment. systemd does not expand environment variables in a unit
+file — only its own `%` specifiers — so a `CRIER_SCHEDULE_TIMES` would simply not
+work. Checked on 2026-10-17 on systemd 255: a timer whose `OnCalendar` was
+`$CRIER_PROBE_TIME` never activated, and the literal string failed to parse as a
+calendar spec. Changing the times means editing the unit and running
+`systemctl --user daemon-reload`; the unit's own comments say so.
 
 Each run sends every alert that is due plus **one** note bulletin — with two or
 three runs a day that is the owner's "several per day".
@@ -164,7 +171,6 @@ three runs a day that is the owner's "several per day".
 | `CRIER_LISTS_DIR` | the content directory (default `lists`) |
 | `CRIER_HISTORY_PATH` | the history file (default `data/history.jsonl`) |
 | `CRIER_HISTORY_MAX_LINES` | the history cap |
-| `CRIER_SCHEDULE_TIMES` | the day's fixed times, read by the timer |
 | `CRIER_NOTE_FLOOR_DAYS` | the no-repeat floor |
 | `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM |
 | `CRIER_AVALAI_API_KEY` | what the credit watcher reads |
