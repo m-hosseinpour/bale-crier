@@ -1,0 +1,24 @@
+; bale-crier timer — user-level. See bale-crier.service for the install notes.
+;
+; This timer, not the service, is the unit to enable:
+;   systemctl --user enable --now bale-crier.timer
+;
+; The times are literal on purpose: systemd expands no environment variable in a unit
+; file, so a CRIER_SCHEDULE_TIMES would simply never fire. To change a time, edit the
+; OnCalendar lines below and run `systemctl --user daemon-reload`.
+;
+; Each run sends one note bulletin (milestones 2 and 3), so these three times are the
+; owner's "several per day".
+
+[Unit]
+Description=Run bale-crier at three fixed times a day
+
+[Timer]
+OnCalendar=08:00
+OnCalendar=14:00
+OnCalendar=20:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

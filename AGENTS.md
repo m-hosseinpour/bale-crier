@@ -7,7 +7,8 @@ lists, reworded and varied by an LLM a few times a day. Lessons and news summari
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** the design is settled; milestone 1 (the path end to end) is being built.
+**Status:** milestone 1 (the path end to end) is done and deployed; milestone 2 (the AvalAI credit
+watcher) is next.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must
@@ -67,7 +68,9 @@ tests/          pytest
 ## Conventions
 
 - Code, comments and docs are English. Every string that reaches the owner is Persian.
-- Persian half-spaces need a real U+200C (ZWNJ) — the generating model drops it otherwise.
+- Persian half-spaces need a real U+200C. It goes in `می`/`نمی`, the plural `ها`, `تر`/`ترین` and
+  the prefix `بی` (`بی‌پاسخ`) — but **not** in the prefix `نا`, which is written connected
+  (`ناموفق`, `نامعتبر`, `نامناسب`). The generating model drops the character otherwise.
 - Commits: OpenCode as author and committer, the owner as `Co-authored-by`.
 
 ## Rules a session must not break

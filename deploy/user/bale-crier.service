@@ -1,0 +1,23 @@
+; bale-crier — user-level systemd unit (one run: gather, send, record).
+;
+; Install to ~/.config/systemd/user/, then:
+;   systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer
+;
+; The timer is what schedules this oneshot; this unit is deliberately static and has no
+; [Install] section, so enabling the service alone does nothing.
+;
+; WorkingDirectory matters: the default lists_dir and history_path are relative, and a run
+; started elsewhere would write its history in the wrong place. It is also where the .env
+; holding the token and the chat id is read from.
+;
+; Linger must be on — `sudo loginctl enable-linger $USER` — otherwise the user manager
+; (and this timer with it) is torn down when the last session ends.
+
+[Unit]
+Description=run bale-crier once
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/mahdi/workspace/bale-crier/
+ExecStart=/home/mahdi/workspace/bale-crier/.venv/bin/python -m bale_crier
+Environment=PYTHONUNBUFFERED=1

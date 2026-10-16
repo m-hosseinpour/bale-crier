@@ -13,6 +13,10 @@ with `pydantic-settings`, `requests`, pytest, type hints.
 
 **Spec:** `docs/specs/2026-10-17-bale-crier-design.md`
 
+**Status:** complete, 2026-10-17. All five acceptance criteria were met — including a real message in
+the owner's Bale chat, which he confirmed. See "Amendments during implementation" at the end for
+what changed after this plan was written.
+
 ## Global Constraints
 
 - Every setting is read from the environment with the `CRIER_` prefix.
@@ -289,3 +293,41 @@ belong to milestones 2 and 3.
 - `WorkingDirectory` matters: the default `lists_dir` and `history_path` are
   relative, and a run started elsewhere would write its history in the wrong
   place.
+
+## Amendments during implementation
+
+Dated 2026-10-17, so a later reader sees the plan's current state rather than the
+state it was written in.
+
+- **`message_id` is not in `SendResult`** (dropped while planning, before the
+  build). Nothing used it, and the shape of Bale's `result` was never verified —
+  only `ok` was.
+- **A fragment at the end of the history is now closed off before the next
+  append.** Found in review, and a real bug rather than a test gap: a run killed
+  mid-write leaves a line with no newline, so the next record was appended onto
+  it and both were lost on read. The documented "one broken line" recovery was
+  costing two records. `append` now writes a newline first when the file does not
+  end with one.
+- **`history_max_lines`, `note_floor_days` and `http_timeout` carry lower
+  bounds** (`ge=1`, `ge=0`, `ge=1`). Each silently does damage at zero, and a cap
+  of zero emptied the history.
+- **The cap trim writes to a neighbour file and renames it**, rather than
+  truncating the history in place — the one write that could otherwise lose
+  everything. Atomicity itself is not observable to a unit test; the check that
+  no neighbour file is left behind is.
+- **`main(["--help"])` returns 0** by catching `argparse`'s `SystemExit`, which
+  the plan's wording did not anticipate. A bad flag therefore returns 2 rather
+  than propagating.
+- **The venv resolved to a uv-managed CPython 3.14.7**, not the machine's 3.12.3
+  — the same interpreter the sibling `bale-news-digest` venv uses. The
+  `requires-python` floor stays `>=3.11`.
+- **The `.env` reaches a systemd run through `WorkingDirectory`**, not through
+  `EnvironmentFile=`. pydantic-settings reads `.env` relative to the working
+  directory, which the unit sets. The unit's comments and the README say so.
+
+One claim from the review was checked and **rejected**: it asked for a U+200C in
+`نامعتبر` and `ناموفق`. The prefix `نا` is written connected, unlike `بی`. Two
+independent sources say so — an editorial site that half-spaces `می`/`ها`/`بی`
+consistently, and the raw text of Persian Wikipedia, where `ناموفق` appears 32
+times connected and 0 times half-spaced. Adding the character would have been the
+error.
