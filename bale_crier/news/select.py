@@ -128,7 +128,9 @@ def parse_answer(
 
     ``None`` means the whole answer is unusable — one bad line fails it, per the
     spec's failure list read literally. A repeated index is not a failure: it is
-    collapsed to its first occurrence, since the same story twice is noise.
+    collapsed to its first occurrence, since the same story twice is noise. An
+    empty sentence is a failure too: ``<index>|`` is the right shape with nothing
+    in it, and a numbered item with no Persian line is not a usable answer.
     """
     chosen: list[Chosen] = []
     seen: set[int] = set()
@@ -144,6 +146,8 @@ def parse_answer(
         except ValueError:
             return None
         if not 1 <= index <= len(stories):
+            return None
+        if not sentence.strip():
             return None
         if index in seen:
             continue

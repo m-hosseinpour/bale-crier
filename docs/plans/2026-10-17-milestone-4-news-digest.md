@@ -81,10 +81,10 @@ The milestone is done when all of these hold:
 2. `uv run python -m bale_crier --only news` puts one real Persian digest in the owner's Bale
    chat, and `data/history.jsonl` gains a line with `kind:"news"`, `ok:true`, and a `text`
    equal to what was actually sent.
-3. The **very next** `--only news` run sends nothing, because every story it carried is in the
-   seen set and the feed's `when:1d` window has not refilled it. With `data/watchers.json`
-   deleted between the two runs, the second run sends the same stories again — which is what
-   shows the seen set, and not the feed, is what made the difference.
+3. The **very next** `--only news` run carries *different* stories — the ones the first run did not
+   carry — because the seen set holds only the guids the digest actually sent. Remove the `news`
+   key from `data/watchers.json` between the two runs and the second run sends the same stories
+   again, which is what shows the seen set, and not the feed, is what made the difference.
 4. With `CRIER_NEWS_FEED_URL` pointed at an unreachable URL, one run sends one short Persian
    bulletin naming the short error code, and it does not say there was no news.
 5. With a deliberately wrong LLM key, one run sends the raw English headlines of the newest
@@ -398,7 +398,8 @@ through.
 - This is the sweep the project's rules require: a document describing the state before a change
   is worse than none, because the next session reads it first and acts on it.
 - The live checks are the Acceptance Criteria, run by hand, and criterion 3 is the one to run:
-  one digest arrives, then a second run in the same minute sends nothing.
+  one digest arrives, then a second run in the same minute carries the next newest stories, not
+  the same ones — and carries them again if the `news` key is removed from the memory first.
 
 ## Amendments during implementation
 
@@ -429,4 +430,26 @@ written in.
 - **Milestone 3's plan still said `**Status:** not started.`** It is a present-tense claim about
   a milestone the project's own status line already called done, so it now reads `complete,
   2026-10-17`. The milestone 1–3 plans are otherwise left as the records of their own moment.
+- **The independent review of the whole milestone found five things, and all five are closed.**
+  - the README's hand-check and this plan's criterion 3 both claimed a second `--only news` run
+    sends nothing. It does not, and cannot: the seen set holds only the guids the digest carried,
+    so a second run carries the *next* newest stories. Both now say the true observable — the
+    second run sends different stories, and sends the first run's again if the `news` key is
+    removed from the memory first. Nothing in the design changed: the spec's step 8 is "add the
+    **chosen** stories' guids", and a story the digest did not carry is deliberately still
+    eligible. What was wrong was the check, not the code;
+  - `AGENTS.md` claimed all three timers were enabled when `bale-crier-news.timer` was not yet
+    installed. It now says which two are running and which is written but not installed;
+  - `models.py`'s `Bulletin` docstring still listed three kinds and `producers.py`'s still named
+    two producers — both now name the news digest. A stale enumeration is the same defect as a
+    stale sentence, one size smaller, and these are the two files a reader opens to learn what
+    exists;
+  - `news/__init__.py` was a bare marker with no reason given. `config` imports `DEFAULT_FEED_URL`
+    from `news.feed`, so a convenience re-export there would turn that import into a cycle; the
+    file now says so where the mistake would be made;
+  - `parse_answer` accepted a line whose sentence is empty (`"1|"`), which rendered a numbered
+    digest item with nothing under it. An empty sentence is now a model failure, so the answer
+    falls back to the raw headlines rather than sending a half-empty digest. The spec's failure
+    list covers "a line that does not parse"; `"1|"` is the right shape with nothing in it, and a
+    numbered item with no Persian line is not a usable answer.
 

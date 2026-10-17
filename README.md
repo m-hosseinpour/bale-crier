@@ -224,7 +224,9 @@ uv run python -m bale_crier --only credit
 ```
 
 And prove the digest by hand. One run sends one digest and records the stories it carried in the
-seen set, so a second run in the same minute sends nothing.
+seen set, so a second run in the same minute carries *different* stories — the ones the first run
+left behind. Remove the `news` key from `data/watchers.json` between the two runs and the second
+run sends the same stories again, which is what shows the seen set is doing the work.
 
 ```sh
 uv run python -m bale_crier --only news

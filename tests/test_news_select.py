@@ -205,6 +205,13 @@ def test_an_answer_of_blank_lines_only_is_a_model_failure():
     assert parse_answer("", [story("a")], max_items=5) is None
 
 
+def test_a_line_with_an_empty_sentence_is_a_model_failure():
+    """`1|` is the right shape with nothing in it: a numbered item with no Persian
+    line is not a usable answer, and the raw fallback is better than a blank item."""
+    assert parse_answer("1|", [story("a")], max_items=5) is None
+    assert parse_answer("1|   ", [story("a")], max_items=5) is None
+
+
 def test_one_bad_line_fails_the_whole_answer():
     """The spec's failure list is read literally: a good line is not salvaged."""
     assert parse_answer("1|خوب\nخط دوم", [story("a"), story("b")], max_items=5) is None

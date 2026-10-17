@@ -65,7 +65,7 @@ class Story(BaseModel):
 
 
 class Bulletin(BaseModel):
-    """One message that goes to Bale. Kinds so far: ``smoke``, ``alert``, ``note``."""
+    """One message that goes to Bale. Kinds so far: ``smoke``, ``alert``, ``note``, ``news``."""
 
     kind: str
     text: str

@@ -1,8 +1,8 @@
 """Producers: what a run asks for bulletins right now.
 
 A producer is one kind of message. The smoke producer lives here; the ones that
-need settings or a memory to write to — the credit watcher and the note producer
-— are built in ``run.build_producers``.
+need settings or a memory to write to — the credit watcher, the note producer and
+the news digest — are built in ``run.build_producers``.
 """
 
 from datetime import datetime
