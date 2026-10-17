@@ -147,7 +147,11 @@ def parse_answer(
             return None
         if not 1 <= index <= len(stories):
             return None
-        if not sentence.strip():
+        # A sentence of only whitespace or zero-width marks renders a numbered item
+        # with nothing visible under it, which is what this rule exists to prevent.
+        # `str.strip()` alone would let a lone U+200C through: it is a format
+        # character, not whitespace, so stripping does not remove it.
+        if not any(char.isprintable() and not char.isspace() for char in sentence):
             return None
         if index in seen:
             continue

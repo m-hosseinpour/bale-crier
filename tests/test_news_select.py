@@ -207,9 +207,17 @@ def test_an_answer_of_blank_lines_only_is_a_model_failure():
 
 def test_a_line_with_an_empty_sentence_is_a_model_failure():
     """`1|` is the right shape with nothing in it: a numbered item with no Persian
-    line is not a usable answer, and the raw fallback is better than a blank item."""
+    line is not a usable answer, and the raw fallback is better than a blank item.
+
+    A lone zero-width mark counts as empty too — U+200C is a format character, not
+    whitespace, so a plain strip would leave an item with nothing visible under it.
+    """
     assert parse_answer("1|", [story("a")], max_items=5) is None
     assert parse_answer("1|   ", [story("a")], max_items=5) is None
+    assert parse_answer("1|\u200c", [story("a")], max_items=5) is None
+    assert parse_answer("1| \u200c ", [story("a")], max_items=5) is None
+    # A visible line survives, however short.
+    assert parse_answer("1|متن", [story("a")], max_items=5) is not None
 
 
 def test_one_bad_line_fails_the_whole_answer():

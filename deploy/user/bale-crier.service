@@ -13,16 +13,17 @@
 ; Linger must be on — `sudo loginctl enable-linger $USER` — otherwise the user manager
 ; (and this timer with it) is torn down when the last session ends.
 ;
-; TimeoutStartSec is raised above systemd's 90-second default because the note run waits on
-; the model for up to CRIER_OPEN_AI_TIMEOUT (120s) before it sends, and a run killed at 90s
-; would send nothing and leave no history line to say why.
+; TimeoutStartSec is raised well above systemd's 90-second default: a run waits out a model call
+; and a Bale send in turn, so the unit must allow more than CRIER_OPEN_AI_TIMEOUT plus the
+; CRIER_HTTP_TIMEOUT allowance. A run killed mid-wait would send nothing and leave no history
+; line to say why, so keep this above their sum.
 
 [Unit]
 Description=run bale-crier once
 
 [Service]
 Type=oneshot
-TimeoutStartSec=180
+TimeoutStartSec=300
 WorkingDirectory=/home/mahdi/workspace/bale-crier/
 ExecStart=/home/mahdi/workspace/bale-crier/.venv/bin/python -m bale_crier
 Environment=PYTHONUNBUFFERED=1

@@ -197,8 +197,9 @@ The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat 
 left empty there and inherits that same key, so the rewording works without a second copy of it.
 `WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
 `watchers_state_path` point. The two units that call the model — `bale-crier.service` and
-`bale-crier-news.service` — set `TimeoutStartSec=180`, above systemd's 90-second default, so a run
-is not killed while it waits out `CRIER_OPEN_AI_TIMEOUT`.
+`bale-crier-news.service` — set `TimeoutStartSec=300`, above systemd's 90-second default, so a run
+is not killed while it waits out a feed fetch, a model call and a send in turn. Keep it above
+`CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
 The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
 randomized delay in `bale-crier.timer`, `hourly` with a two-minute spread in

@@ -458,6 +458,19 @@ written in.
   - the plain daily run's producer set was `["note"]` alone, it sent no digest, and the digest's
     seen set survived it (criterion 7) — the seam where the two producers share one memory file.
   The very first live run arrived in English, which is how the timeout amendment above was found.
+- **A second review, of the timeout delta itself, found three things, and all three are closed.**
+  - the news unit's `TimeoutStartSec=180` left no headroom: the run's own allowances add up to
+    exactly 180 (feed 30 + model 120 + send 30), so a slow run would be killed at the very instant
+    its own limits expired, and the history line — appended only after the send — would never be
+    written. Both units that call the model now set 300, and the unit comments and the README
+    state the rule: keep it above `CRIER_OPEN_AI_TIMEOUT` plus the HTTP allowances;
+  - this plan's own bullet about `AGENTS.md` still described the intermediate wording, which is
+    the same "document asserts a state the tree does not have" defect one size smaller. It now
+    records the sequence;
+  - `parse_answer`'s empty-sentence rule used `str.strip()`, which does not remove U+200C — a
+    format character, not whitespace — so a line whose sentence was a lone zero-width mark still
+    rendered a numbered item with nothing visible under it. The rule now asks for at least one
+    printable, non-space character, and a test pins the zero-width case.
 - **The independent review of the whole milestone found five things, and all five are closed.**
   - the README's hand-check and this plan's criterion 3 both claimed a second `--only news` run
     sends nothing. It does not, and cannot: the seen set holds only the guids the digest carried,
@@ -467,7 +480,9 @@ written in.
     **chosen** stories' guids", and a story the digest did not carry is deliberately still
     eligible. What was wrong was the check, not the code;
   - `AGENTS.md` claimed all three timers were enabled when `bale-crier-news.timer` was not yet
-    installed. It now says which two are running and which is written but not installed;
+    installed. It was reworded to say which two were running and which was written but not
+    installed, and after the timer was installed it reads "all three timers are enabled and
+    running" again — this time truthfully;
   - `models.py`'s `Bulletin` docstring still listed three kinds and `producers.py`'s still named
     two producers — both now name the news digest. A stale enumeration is the same defect as a
     stale sentence, one size smaller, and these are the two files a reader opens to learn what
