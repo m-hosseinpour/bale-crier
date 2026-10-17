@@ -20,8 +20,8 @@ is the `llm.py` that milestone 3 already built.
 **Spec:** `docs/specs/2026-10-17-news-digest-design.md` (the digest's own design, settled
 2026-10-17). The main design's "Milestones" section names this as milestone 4.
 
-**Status:** built, 2026-10-17 — the four tasks are done and `uv run pytest` is green; the live
-checks in the Acceptance Criteria are run by hand.
+**Status:** complete, 2026-10-17 — the four tasks are done, `uv run pytest` is green (267 tests),
+and the live checks were run against the real feed, the real model and the owner's Bale chat.
 
 ## Global Constraints
 
@@ -406,6 +406,18 @@ through.
 Dated 2026-10-17, so a later reader sees the plan's current state rather than the state it was
 written in.
 
+- **The model got its own timeout, `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds).** The plan had
+  the digest's model call use the project's `http_timeout` (30s), the way the note producer's call
+  does. The first live run showed why that cannot work: the digest arrived in English — the
+  fallback for a failed call — because the call had been cut off. Measured: this model takes 30 to
+  50 seconds to answer the digest prompt, with five candidates as well as with fifty-four, so the
+  latency is the model's own and not the prompt's size. The plan's "Verified external facts"
+  verified the feed thoroughly and never measured the model, which is the gap that let this
+  through; the lesson is that the slow external call is as much a fact to probe as the response
+  shape. The owner ruled for a model-wide setting rather than a digest-only one, so `reword` uses
+  it too and a slow model can no longer silently degrade a note to its fallback either; the two
+  units that call the model set `TimeoutStartSec=180` so systemd does not kill a run mid-wait.
+
 - **An empty `CRIER_NEWS_FEED_URL` means the owner's query, not an empty URL.** Pydantic-settings
   reads a shipped `CRIER_NEWS_FEED_URL=` as `""` and does not fall back to the field default, so
   `.env.example` could not list the setting the way it lists every other one without breaking
@@ -430,6 +442,22 @@ written in.
 - **Milestone 3's plan still said `**Status:** not started.`** It is a present-tense claim about
   a milestone the project's own status line already called done, so it now reads `complete,
   2026-10-17`. The milestone 1–3 plans are otherwise left as the records of their own moment.
+- **The live checks were run on 2026-10-17**, against the real feed, the real model and the
+  owner's Bale chat:
+  - a real Persian digest of five stories arrived (criterion 2), with Persian digits and correct
+    half-spaces, and the history recorded `kind:"news"`, `ok:true` and exactly the text sent;
+  - a second run carried five *different* stories and the seen set grew from 5 to 10
+    (criterion 3) — the observable is "different", not "nothing", as the review amendment below
+    records;
+  - with `CRIER_NEWS_FEED_URL` pointed at an unreachable port, one Persian bulletin arrived naming
+    `transport error`, and the seen set was left untouched (criterion 4);
+  - with a deliberately wrong `CRIER_OPEN_AI_API_KEY`, the raw English headlines arrived with
+    their sources and links and the Persian line naming `HTTP 401` (criterion 5);
+  - `systemd-analyze verify` exits 0 for both new units, and `bale-crier-news.timer` is enabled
+    with a next elapse (criterion 6);
+  - the plain daily run's producer set was `["note"]` alone, it sent no digest, and the digest's
+    seen set survived it (criterion 7) — the seam where the two producers share one memory file.
+  The very first live run arrived in English, which is how the timeout amendment above was found.
 - **The independent review of the whole milestone found five things, and all five are closed.**
   - the README's hand-check and this plan's criterion 3 both claimed a second `--only news` run
     sends nothing. It does not, and cannot: the seen set holds only the guids the digest carried,

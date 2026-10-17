@@ -90,6 +90,10 @@ text, because that is what the owner actually read. A failed call does not cost 
 bulletin then carries the note's own text followed by one line saying the rewording did not happen,
 and the history records that.
 
+A model call gets `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds), not the 30-second
+`CRIER_HTTP_TIMEOUT`: it is a reasoning model and takes tens of seconds to answer, so a shorter
+allowance would silently turn every note and every digest into its fallback.
+
 `--only note` runs the note producer alone.
 
 ## The credit watcher
@@ -192,7 +196,9 @@ The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat 
 `CRIER_AVALAI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. `CRIER_OPEN_AI_API_KEY` is
 left empty there and inherits that same key, so the rewording works without a second copy of it.
 `WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
-`watchers_state_path` point.
+`watchers_state_path` point. The two units that call the model — `bale-crier.service` and
+`bale-crier-news.service` — set `TimeoutStartSec=180`, above systemd's 90-second default, so a run
+is not killed while it waits out `CRIER_OPEN_AI_TIMEOUT`.
 
 The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
 randomized delay in `bale-crier.timer`, `hourly` with a two-minute spread in

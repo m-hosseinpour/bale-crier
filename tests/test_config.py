@@ -60,6 +60,9 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     assert settings.open_ai_base_url == "https://api.avalai.ir/v1"
     assert settings.open_ai_model == "deepseek-v4-flash"
     assert settings.open_ai_api_key is None
+    # The model's own allowance, well above the HTTP timeout: it is a reasoning
+    # model, and at 30s every call would be cut off and degrade to the fallback.
+    assert settings.open_ai_timeout == 120
     assert settings.avalai_api_key is None
     assert settings.credit_threshold_irt == 50_000
     assert settings.watchers_state_path == Path("data/watchers.json")
@@ -195,4 +198,25 @@ def test_a_news_cap_below_one_is_refused(monkeypatch):
 
     message = str(caught.value)
     assert "CRIER_NEWS_MAX_ITEMS" in message
+    assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_the_model_timeout_takes_its_value_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_OPEN_AI_TIMEOUT", "45")
+
+    assert load_settings().open_ai_timeout == 45
+
+
+def test_a_model_timeout_below_one_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_OPEN_AI_TIMEOUT", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    message = str(caught.value)
+    assert "CRIER_OPEN_AI_TIMEOUT" in message
     assert any("\u0600" <= char <= "\u06ff" for char in message)

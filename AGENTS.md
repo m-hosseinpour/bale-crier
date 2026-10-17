@@ -10,10 +10,9 @@ so no abstraction is owed to a channel that does not exist.
 
 **Status:** milestones 1–4 are built — the path end to end, the AvalAI credit watcher, the owner's
 lists (reading them, choosing a note, rewording it), and the news digest (the Google News feed,
-the hard filter and the seen set, the model's selection). The daily and credit timers are enabled
-and running; `bale-crier-news.timer` is written and verified but not yet installed. The daily one
-sends one note per run, so until the owner puts his own content in `lists/` it says the directory
-is missing and sends none.
+the hard filter and the seen set, the model's selection). All three timers are enabled and running.
+The daily one sends one note per run, so until the owner puts his own content in `lists/` it says
+the directory is missing and sends none.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must

@@ -178,6 +178,7 @@ def test_the_feed_and_the_model_are_called_with_the_configured_values(tmp_path):
             http_timeout=7,
             open_ai_model="a-model",
             open_ai_base_url="https://llm.test/v1",
+            open_ai_timeout=99,
         ),
         memory(tmp_path),
         read=read,
@@ -190,8 +191,9 @@ def test_the_feed_and_the_model_are_called_with_the_configured_values(tmp_path):
     assert llm_calls[0]["key"] == "key"
     assert llm_calls[0]["model"] == "a-model"
     assert llm_calls[0]["base_url"] == "https://llm.test/v1"
-    # A configured timeout must not be silently ignored in favour of the default.
-    assert llm_calls[0]["timeout"] == 7
+    # The model gets its own allowance, and the feed gets the HTTP one: a configured
+    # timeout must not be silently ignored in favour of either default.
+    assert llm_calls[0]["timeout"] == 99
 
 
 def test_a_parsed_answer_becomes_the_digest(tmp_path):

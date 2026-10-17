@@ -162,6 +162,12 @@ The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` — or `CRIER_AVALAI_API_KE
 and the CLI says so in Persian. A *failing* call is the raw-headline case above; a *missing* key is
 not, so the digest does not quietly start arriving in English every day.
 
+A model call is allowed `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds) rather than the project's
+30-second `http_timeout`. Measured on 2026-10-17, this model takes **30 to 50 seconds** to answer
+the digest prompt — with five candidates as well as with fifty-four, so the latency is the model's
+own, not the prompt's size. At the HTTP timeout every call would be cut off and the digest would
+arrive in English every day, which is the one outcome the failure rules exist to avoid.
+
 ## Where it sits in the code
 
 ```

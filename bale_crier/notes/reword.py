@@ -75,7 +75,7 @@ def reword(
         key=settings.open_ai_api_key or "",
         model=settings.open_ai_model,
         base_url=settings.open_ai_base_url,
-        timeout=settings.http_timeout,
+        timeout=settings.open_ai_timeout,
     )
     if read.text:
         return read.text

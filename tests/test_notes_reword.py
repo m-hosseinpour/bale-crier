@@ -135,6 +135,7 @@ def test_reword_passes_the_settings_through_to_the_call():
         open_ai_api_key="k",
         open_ai_model="m",
         open_ai_base_url="https://example.test/v1",
+        open_ai_timeout=99,
     )
 
     reword(note(), [], settings=config, complete=complete)
@@ -142,6 +143,9 @@ def test_reword_passes_the_settings_through_to_the_call():
     assert calls[0]["key"] == "k"
     assert calls[0]["model"] == "m"
     assert calls[0]["base_url"] == "https://example.test/v1"
+    # The model's own allowance, not the project's HTTP one: a slow reasoning model
+    # would otherwise be cut off and the note would silently fall back.
+    assert calls[0]["timeout"] == 99
 
 
 def test_an_empty_text_that_claims_success_still_returns_a_usable_string():

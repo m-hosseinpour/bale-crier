@@ -79,7 +79,7 @@ class NewsProducer:
             key=self._settings.open_ai_api_key or "",
             model=self._settings.open_ai_model,
             base_url=self._settings.open_ai_base_url,
-            timeout=self._settings.http_timeout,
+            timeout=self._settings.open_ai_timeout,
         )
 
         chosen = None

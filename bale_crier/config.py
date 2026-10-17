@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     open_ai_base_url: str = "https://api.avalai.ir/v1"
     open_ai_model: str = "deepseek-v4-flash"
     open_ai_api_key: str | None = None
+    # The model is a reasoning model and takes tens of seconds to answer where a
+    # Bale or credit call takes milliseconds, so it gets its own allowance: at the
+    # project's HTTP timeout every model call would be cut off and degrade to the
+    # fallback text without a word about why.
+    open_ai_timeout: int = Field(default=120, ge=1)
     avalai_api_key: str | None = None
     credit_threshold_irt: float = Field(default=50_000, ge=0)
     watchers_state_path: Path = Path("data/watchers.json")
