@@ -10,8 +10,8 @@ needs told. Two families of message, one channel:
 
 - **alerts** about external state — the first one is AvalAI credit running out;
 - **notes** drawn from the owner's own lists, reworded by an LLM so the same
-  item does not arrive in the same words twice, and sometimes with a short
-  motivational addition.
+  item does not arrive in the same words twice. The rewording's tone may be warm
+  and motivational; nothing is appended to it (settled 2026-10-17).
 
 Lessons and news summaries come later. Nothing here is channel-agnostic: Bale is
 the only channel, and alerts are Bale messages too.
@@ -90,7 +90,7 @@ bale_crier/
   history.py     append-only JSONL with a size cap
   memory.py      where a watcher keeps its own state across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
-  llm.py         the AvalAI client (needed once notes land)
+  llm.py         the AvalAI client, reduced to the text or a short error code
   run.py         one run: gather, send, record
   cli.py         the entry point
   watchers/      one module per watcher; avalai_credit.py is the first
@@ -107,7 +107,8 @@ tests/
 ## Data model
 
 - `Note` — `list_name`, `id`, `text`.
-- `Bulletin` — `kind` (`alert` | `note`, more later), `text`, `note_id` optional.
+- `Bulletin` — `kind` (`alert` | `note`, more later), `text`, `note_id` optional,
+  `list_name` optional (which list a note came from).
 - history line — `{ts, kind, list_name, note_id, text, ok}`.
 - watcher memory — one JSON object per producer name, in
   `CRIER_WATCHERS_STATE_PATH`. Its contents are the producer's own business; the
@@ -115,15 +116,21 @@ tests/
 
 ## Choosing a note
 
-Cycle plus a floor, both read from the history:
+The cycle, read from the history: the note whose last send is oldest goes first,
+and a note that has never gone is the oldest send of all. Every note is therefore
+reached before any repeats, and the spacing a note gets follows from the size of
+its list — no count of notes and no per-list tuning.
 
-- **cycle** — the note whose last send is oldest goes first, so every note is
-  reached before any repeats;
-- **floor** — while any fresh note remains, a note sent within the last
-  `CRIER_NOTE_FLOOR_DAYS` days does not go again. If every note is inside the
-  floor, the oldest one goes anyway, so a small list cannot starve.
-
-This scales itself: the rule needs no count of notes and no per-list tuning.
+**The repeat floor was dropped** (owner's ruling, 2026-10-17, after measuring it).
+The first design had a second rule on top of the cycle: while any note outside the
+floor remained, a note sent within the last `CRIER_NOTE_FLOOR_DAYS` days would not
+go again, and if every note was inside the floor the oldest went anyway. With the
+notes ordered by last send, the notes outside such a floor are always a *prefix*
+of that ordering, so the oldest note is outside the floor exactly when any note
+is — the filter hands back the note the cycle already picked — and when every note
+is inside the floor the fallback hands back that same note. A version with the
+filter deleted passes the same tests, which is what a rule that changes no answer
+looks like. `CRIER_NOTE_FLOOR_DAYS` went with it.
 
 ## Rewording (the LLM)
 
@@ -132,14 +139,23 @@ call. The model is configurable (`CRIER_OPEN_AI_MODEL`); the default is a cheap
 one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
-The prompt asks for: the note's meaning kept; a fresh Persian wording each time,
-with the previous wordings of the same note supplied so the model can avoid
-them; correct U+200C in every half-space word; and optionally one short
-motivational sentence when it fits. Output is the message text alone — no
-preamble, no quotes, no markdown scaffolding.
+The prompt asks for: the note's meaning kept, with no claim of the model's own
+added; a fresh Persian wording each time, with the previous wordings of the same
+note supplied so the model can avoid them; correct U+200C in every half-space
+word; and a warm, motivational tone inside the rewording, since nothing may be
+appended to it. Output is the message text alone — no preamble, no quotes, no
+markdown scaffolding.
 
 The reworded text, not the note's own text, is what the history stores: that is
 the record of what the owner actually read.
+
+**Two rulings from the owner (2026-10-17).** There is **no separate motivational
+sentence**: the warm tone lives inside the rewording, so nothing is appended to it
+and there is no addition to bound. And **a failed call is not a lost note**: the
+bulletin then carries the note's own text followed by one short Persian line saying
+the rewording did not happen, with the call's short error code in parentheses. That
+bulletin is a real send — the history records it, and it moves the note through the
+cycle — because the history is the record of what the owner actually read.
 
 ## Bale delivery
 
@@ -185,8 +201,7 @@ There are therefore two timers: `bale-crier.timer` for the daily bulletins, and
 | `CRIER_LISTS_DIR` | the content directory (default `lists`) |
 | `CRIER_HISTORY_PATH` | the history file (default `data/history.jsonl`) |
 | `CRIER_HISTORY_MAX_LINES` | the history cap |
-| `CRIER_NOTE_FLOOR_DAYS` | the no-repeat floor |
-| `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM |
+| `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM (`CRIER_OPEN_AI_API_KEY` inherits `CRIER_AVALAI_API_KEY` when empty) |
 | `CRIER_AVALAI_API_KEY` | what the credit watcher reads |
 | `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
@@ -259,16 +274,15 @@ real message arrives in Bale.
 pytest, type hints throughout, `uv` for the environment — the stack
 `bale-news-digest` runs.
 
-Testable without the network: parsing a list into notes, the cycle-and-floor
-choice given a synthetic history, the history cap, bulletin rendering, and the
-sender's payload shape against a stub. The live Bale send is verified by hand,
-once per milestone.
+Testable without the network: parsing a list into notes, the cycle's choice given
+a synthetic history, the history cap, bulletin rendering, the rewording prompt
+and its fallback, and the sender's payload shape against a stub. The live Bale
+send is verified by hand, once per milestone.
 
 ## Still open
 
 - Which other watchers the owner wants, beyond AvalAI credit. Only that one is
   named so far.
-- Whether a note's motivational addition should be bounded, and how.
 - The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
   confirmed; the hourly credit check needs no confirmation.
 - Whether news summaries move here from `bale-news-digest`, or stay there and

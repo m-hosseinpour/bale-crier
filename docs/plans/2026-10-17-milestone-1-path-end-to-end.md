@@ -91,7 +91,8 @@ belong to milestones 2 and 3.
 - `Settings` — a `pydantic_settings.BaseSettings` subclass, `env_prefix="CRIER_"`,
   reading `.env`, with fields: `bale_bot_token: str`, `bale_chat_id: int`,
   `lists_dir: Path = Path("lists")`, `history_path: Path = Path("data/history.jsonl")`,
-  `history_max_lines: int = 5000`, `note_floor_days: int = 30`,
+  `history_max_lines: int = 5000`, `note_floor_days: int = 30` (removed in milestone 3 — see the
+  amendments at the end of this plan),
   `http_timeout: int = 30`, `smoke: bool = False`,
   `open_ai_base_url: str = "https://api.avalai.ir/v1"`,
   `open_ai_model: str = "deepseek-v4-flash"`, `open_ai_api_key: str | None = None`,
@@ -168,6 +169,7 @@ belong to milestones 2 and 3.
 - `append(record: HistoryRecord, *, path: Path, max_lines: int) -> None`
 - `read_all(*, path: Path) -> list[HistoryRecord]`
 - `last_sent_at(*, note_id: str, list_name: str, path: Path) -> datetime | None`
+  (became `last_sent_map` in milestone 3 — see the amendments at the end of this plan)
   — the newest `ts` among the successful `note` records for that note; `None` when
   it has never gone. Milestone 3 consumes this; milestone 1 only needs it to
   exist and be tested.
@@ -324,6 +326,13 @@ state it was written in.
 - **The `.env` reaches a systemd run through `WorkingDirectory`**, not through
   `EnvironmentFile=`. pydantic-settings reads `.env` relative to the working
   directory, which the unit sets. The unit's comments and the README say so.
+- **Two interfaces this plan named were replaced in milestone 3** (2026-10-17).
+  `history.last_sent_at(*, note_id, list_name, path)` asked about one note at a time, while the note
+  chooser asks about every note at once, so it became `history.last_sent_map(*, path)`; the old name
+  is gone rather than kept beside it. And `Settings.note_floor_days` was removed: the "do not repeat
+  within N days" floor it fed could never change the note the cycle picked, so the owner dropped it
+  rather than keep a knob that turns nothing. Both are in
+  `docs/plans/2026-10-17-milestone-3-owner-lists.md`.
 
 One claim from the review was checked and **rejected**: it asked for a U+200C in
 `نامعتبر` and `ناموفق`. The prefix `نا` is written connected, unlike `بی`. Two

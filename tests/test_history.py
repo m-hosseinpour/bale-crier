@@ -1,9 +1,10 @@
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
-from bale_crier.history import append, last_sent_at, read_all
+from bale_crier.history import append, last_sent_map, previous_texts, read_all
 from bale_crier.models import HistoryRecord
 
 NOW = datetime(2026, 10, 17, 8, 30, tzinfo=timezone.utc)
@@ -18,6 +19,13 @@ def record(**overrides) -> HistoryRecord:
     }
     fields.update(overrides)
     return HistoryRecord(**fields)
+
+
+def send(path: Path, **overrides) -> None:
+    """One successful note record, unless an override says otherwise."""
+    fields = {"kind": "note", "note_id": "reading-1", "list_name": "reading"}
+    fields.update(overrides)
+    append(record(**fields), path=path, max_lines=5000)
 
 
 def test_append_creates_the_directory_and_the_file(tmp_path):
@@ -113,65 +121,85 @@ def test_a_cap_below_one_is_refused_before_anything_is_written(tmp_path):
     assert len(read_all(path=path)) == 1
 
 
-def test_last_sent_at_is_none_for_a_note_that_never_went(tmp_path):
+def test_last_sent_map_on_a_missing_file_is_empty(tmp_path):
+    assert last_sent_map(path=tmp_path / "absent.jsonl") == {}
+
+
+def test_last_sent_map_keeps_the_newest_timestamp_when_a_note_went_twice(tmp_path):
     path = tmp_path / "history.jsonl"
+    send(path, ts=NOW)
+    send(path, ts=NOW + timedelta(days=2))
 
-    assert last_sent_at(note_id="reading-1", list_name="reading", path=path) is None
+    assert last_sent_map(path=path) == {("reading", "reading-1"): NOW + timedelta(days=2)}
 
 
-def test_last_sent_at_is_the_newest_successful_note(tmp_path):
+def test_last_sent_map_ignores_failed_other_kind_and_note_less_records(tmp_path):
     path = tmp_path / "history.jsonl"
-    append(
-        record(kind="note", note_id="reading-1", list_name="reading", ts=NOW),
-        path=path,
-        max_lines=5000,
-    )
-    append(
-        record(
-            kind="note",
-            note_id="reading-1",
-            list_name="reading",
-            ts=NOW + timedelta(days=2),
-        ),
-        path=path,
-        max_lines=5000,
-    )
+    send(path, ts=NOW)
+    send(path, ts=NOW + timedelta(days=5), ok=False)
+    send(path, ts=NOW + timedelta(days=9), kind="alert")
+    send(path, ts=NOW + timedelta(days=9), note_id=None)
 
-    assert last_sent_at(note_id="reading-1", list_name="reading", path=path) == NOW + timedelta(days=2)
+    assert last_sent_map(path=path) == {("reading", "reading-1"): NOW}
 
 
-def test_last_sent_at_ignores_failed_and_other_records(tmp_path):
+def test_last_sent_map_separates_the_same_id_in_two_lists(tmp_path):
     path = tmp_path / "history.jsonl"
-    append(
-        record(kind="note", note_id="reading-1", list_name="reading", ts=NOW),
-        path=path,
-        max_lines=5000,
-    )
-    append(
-        record(
-            kind="note",
-            note_id="reading-1",
-            list_name="reading",
-            ts=NOW + timedelta(days=5),
-            ok=False,
-        ),
-        path=path,
-        max_lines=5000,
-    )
-    append(
-        record(
-            kind="note",
-            note_id="reading-1",
-            list_name="other",
-            ts=NOW + timedelta(days=9),
-        ),
-        path=path,
-        max_lines=5000,
-    )
-    append(
-        record(kind="smoke", note_id="reading-1", ts=NOW + timedelta(days=9)),
-        path=path,
-        max_lines=5000,
-    )
+    send(path, ts=NOW)
+    send(path, ts=NOW + timedelta(days=1), list_name="habits")
 
-    assert last_sent_at(note_id="reading-1", list_name="reading", path=path) == NOW
+    assert last_sent_map(path=path) == {
+        ("reading", "reading-1"): NOW,
+        ("habits", "reading-1"): NOW + timedelta(days=1),
+    }
+
+
+def test_previous_texts_gives_the_newest_limit_oldest_first(tmp_path):
+    path = tmp_path / "history.jsonl"
+    send(path, ts=NOW, text="اول")
+    send(path, ts=NOW + timedelta(days=1), text="دوم")
+    send(path, ts=NOW + timedelta(days=2), text="سوم")
+
+    assert previous_texts(
+        path=path, note_id="reading-1", list_name="reading", limit=2
+    ) == ["دوم", "سوم"]
+
+
+def test_previous_texts_is_empty_for_a_note_that_never_went_and_ignores_failures(tmp_path):
+    path = tmp_path / "history.jsonl"
+    send(path, ts=NOW, note_id="other")
+    send(path, ts=NOW + timedelta(days=1), ok=False, text="متن‌ها")
+
+    assert previous_texts(
+        path=path, note_id="reading-1", list_name="reading", limit=3
+    ) == []
+
+
+def test_previous_texts_orders_by_timestamp_not_by_file_order(tmp_path):
+    path = tmp_path / "history.jsonl"
+    send(path, ts=NOW + timedelta(days=2), text="دیرتر")
+    send(path, ts=NOW, text="زودتر")
+
+    assert previous_texts(
+        path=path, note_id="reading-1", list_name="reading", limit=5
+    ) == ["زودتر", "دیرتر"]
+
+
+def test_previous_texts_with_a_limit_beyond_the_records_gives_them_all(tmp_path):
+    path = tmp_path / "history.jsonl"
+    send(path, ts=NOW, text="اول")
+    send(path, ts=NOW + timedelta(days=1), text="دوم")
+
+    assert previous_texts(
+        path=path, note_id="reading-1", list_name="reading", limit=9
+    ) == ["اول", "دوم"]
+
+
+def test_previous_texts_with_a_limit_below_one_gives_nothing(tmp_path):
+    """A slice of ``-0`` would otherwise be the whole list, not an empty one."""
+    path = tmp_path / "history.jsonl"
+    send(path, ts=NOW, text="اول")
+
+    assert previous_texts(
+        path=path, note_id="reading-1", list_name="reading", limit=0
+    ) == []

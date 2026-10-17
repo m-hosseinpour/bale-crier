@@ -42,12 +42,21 @@ class SendResult(BaseModel):
     error: str | None = None
 
 
+class Note(BaseModel):
+    """One item in one of the owner's lists: a ``## id`` heading plus its body."""
+
+    list_name: str
+    id: str
+    text: str
+
+
 class Bulletin(BaseModel):
     """One message that goes to Bale. Kinds so far: ``smoke``, ``alert``, ``note``."""
 
     kind: str
     text: str
     note_id: str | None = None
+    list_name: str | None = None
 
 
 class HistoryRecord(BaseModel):

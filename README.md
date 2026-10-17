@@ -6,8 +6,8 @@ lists, reworded and varied by an LLM a few times a day.
 
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
-**Status:** milestones 1 (the path end to end) and 2 (the AvalAI credit watcher) are built and
-tested. The owner's lists are milestone 3.
+**Status:** milestones 1 (the path end to end), 2 (the AvalAI credit watcher) and 3 (the owner's
+lists) are built and tested.
 
 The design and the reasons behind it are in `docs/specs/2026-10-17-bale-crier-design.md`; one plan
 per milestone lives in `docs/plans/`.
@@ -51,11 +51,43 @@ its own, so the ordinary run leaves it out; the hourly timer runs it alone with 
 credit watcher is not registered at all unless `CRIER_AVALAI_API_KEY` is set — a run under
 `--only credit` without it says so in Persian and sends nothing.
 
+The note producer is the daily run's own work, and is registered only when an LLM key exists. With
+no key, or with no `lists/` directory, the run says so in Persian on stderr rather than passing the
+gap off as a quiet day.
+
 Tests:
 
 ```sh
 uv run pytest
 ```
+
+## The notes
+
+The daily run sends one note from the owner's own lists. A list is one Markdown file in `lists/`
+(gitignored; `lists.example/` shows the format), and a note is a `## id` heading plus the body under
+it:
+
+```markdown
+## reading-1
+هر روز یک صفحه کتاب بخوان
+```
+
+A note's identity is `(list name, heading id)`, so fixing a typo in the body does not look like a new
+note and does not risk re-sending it.
+
+Which note goes is the **cycle**: the one whose last send is oldest goes first, and a note that has
+never gone goes before any that has. So every note is reached before any repeats, and the spacing a
+note gets follows from the size of its list. There is deliberately no separate "do not repeat within
+N days" floor: with the notes ordered by last send, such a floor can only ever return the note the
+cycle had already picked.
+
+The note is rewritten before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, with the
+wordings it already arrived in supplied so the model can avoid them. The history stores the reworded
+text, because that is what the owner actually read. A failed call does not cost the note: the
+bulletin then carries the note's own text followed by one line saying the rewording did not happen,
+and the history records that.
+
+`--only note` runs the note producer alone.
 
 ## The credit watcher
 
@@ -82,23 +114,23 @@ what the owner read, and nothing else.
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
+  models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note
   bale.py        the sender — the only place that talks to Bale
   history.py     append-only JSONL with a size cap
   memory.py      a watcher's own state, across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
+  llm.py         the AvalAI chat call, reduced to the text or a short error
   producers.py   the Producer protocol and the smoke producer
   run.py         one run: gather, send, record
   cli.py         the entry point
   watchers/      one module per watcher; avalai_credit.py is the first
+  notes/         the owner's lists: reading them, choosing a note, rewording it
 deploy/user/     the systemd units
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
 data/            the history and the watcher memory (gitignored)
 tests/           pytest
 ```
-
-`notes/` and `llm.py` arrive with milestone 3.
 
 ## Deploy
 
@@ -120,8 +152,10 @@ enabling it alone does nothing. Run `sudo loginctl enable-linger $USER` once, or
 (and the timers with it) is torn down when the last session ends.
 
 The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id and
-`CRIER_AVALAI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. `WorkingDirectory` also fixes
-where the relative `lists_dir`, `history_path` and `watchers_state_path` point.
+`CRIER_AVALAI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. `CRIER_OPEN_AI_API_KEY` is
+left empty there and inherits that same key, so the rewording works without a second copy of it.
+`WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
+`watchers_state_path` point.
 
 The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
 randomized delay in `bale-crier.timer`, and `hourly` with a two-minute spread in

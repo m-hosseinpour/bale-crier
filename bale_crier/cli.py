@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 
 from .config import ConfigError, load_settings
-from .run import KNOWN_PRODUCERS, run_once
+from .run import CREDIT, KNOWN_PRODUCERS, NOTE, run_once
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,7 +31,23 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    if args.only and "credit" in args.only and not settings.avalai_api_key:
+    # A producer that cannot be built must not be a silent gap: without a word, a
+    # missing key or a missing directory looks exactly like a quiet day. A smoke run
+    # is the exception — it asks no producer for notes, so warning about them there
+    # would be a false alarm on the very deploy check the warning is for.
+    notes_wanted = (NOTE in args.only) if args.only else not settings.smoke
+    if notes_wanted and not settings.open_ai_api_key:
+        print(
+            "بازنویسی یادداشت‌ها بدون کلید مدل ممکن نیست: "
+            "CRIER_OPEN_AI_API_KEY (یا CRIER_AVALAI_API_KEY) تنظیم نشده است.",
+            file=sys.stderr,
+        )
+    if notes_wanted and not settings.lists_dir.is_dir():
+        print(
+            f"پوشهٔ لیست‌ها پیدا نشد: {settings.lists_dir}؛ یادداشتی فرستاده نمی‌شود.",
+            file=sys.stderr,
+        )
+    if args.only and CREDIT in args.only and not settings.avalai_api_key:
         print(
             "ناظر اعتبار بدون کلید اجرا نمی‌شود: CRIER_AVALAI_API_KEY تنظیم نشده است.",
             file=sys.stderr,

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_PREFIX = "CRIER_"
@@ -25,10 +25,8 @@ class Settings(BaseSettings):
     lists_dir: Path = Path("lists")
     history_path: Path = Path("data/history.jsonl")
     # Bounded below because each of these silently does damage at zero: a cap of
-    # zero empties the history, a floor of zero re-sends a note every run, and a
-    # zero timeout fails every call.
+    # zero empties the history, and a zero timeout fails every call.
     history_max_lines: int = Field(default=5000, ge=1)
-    note_floor_days: int = Field(default=30, ge=0)
     http_timeout: int = Field(default=30, ge=1)
     smoke: bool = False
     open_ai_base_url: str = "https://api.avalai.ir/v1"
@@ -39,6 +37,15 @@ class Settings(BaseSettings):
     watchers_state_path: Path = Path("data/watchers.json")
     # Bounded above zero: a window of zero would speak on every failed read.
     credit_unknown_alert_hours: float = Field(default=24, gt=0)
+
+    @model_validator(mode="after")
+    def _inherit_the_llm_key(self) -> "Settings":
+        # One AvalAI key covers both the credit read and the rewording, so an empty
+        # CRIER_OPEN_AI_API_KEY takes the other one rather than making the owner
+        # paste the same secret twice. An explicit key always wins.
+        if not self.open_ai_api_key:
+            self.open_ai_api_key = self.avalai_api_key or None
+        return self
 
 
 def _message(error: dict) -> str:

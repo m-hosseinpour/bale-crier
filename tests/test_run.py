@@ -51,6 +51,7 @@ def stub_sender(result: SendResult):
 class FakeResponse:
     def __init__(self, body):
         self._body = body
+        self.status_code = 200
 
     def json(self):
         return self._body
@@ -58,6 +59,15 @@ class FakeResponse:
 
 def stub_credit(monkeypatch, body):
     monkeypatch.setattr(requests, "get", lambda *a, **kw: FakeResponse(body))
+
+
+def stub_llm(monkeypatch, text="متن تازهٔ امروز"):
+    """The real client runs; only its HTTP call is faked, as `stub_credit` does."""
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *a, **kw: FakeResponse({"choices": [{"message": {"content": text}}]}),
+    )
 
 
 def test_build_producers_is_empty_without_smoke(tmp_path):
@@ -251,3 +261,128 @@ def test_only_credit_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, 
     assert any("\u0600" <= char <= "\u06ff" for char in captured.err)
     # «نمی‌شود»: a half-space word written without U+200C still reads as Persian.
     assert "\u200c" in captured.err
+
+
+def test_build_producers_includes_the_note_producer_when_a_key_is_set(tmp_path):
+    producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
+
+    assert [producer.name for producer in producers] == ["note"]
+
+
+def test_the_daily_run_leaves_the_credit_watcher_out_but_keeps_the_note(tmp_path):
+    producers = build_producers(
+        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        memory=memory(tmp_path),
+    )
+
+    assert [producer.name for producer in producers] == ["note"]
+
+
+def test_smoke_stays_alone_even_when_the_other_producers_could_run(tmp_path):
+    """The deploy check is one fixed message; it must not spend a note as well."""
+    producers = build_producers(
+        settings(smoke=True, avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        memory=memory(tmp_path),
+    )
+
+    assert [producer.name for producer in producers] == ["smoke"]
+
+
+def test_only_note_selects_the_note_producer_alone(tmp_path):
+    producers = build_producers(
+        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        memory=memory(tmp_path),
+        only=["note"],
+    )
+
+    assert [producer.name for producer in producers] == ["note"]
+
+
+def test_no_llm_key_means_no_note_producer_even_under_only(tmp_path):
+    producers = build_producers(settings(), memory=memory(tmp_path), only=["note"])
+
+    assert producers == []
+
+
+def test_a_note_run_sends_one_note_and_records_what_went(tmp_path, monkeypatch):
+    lists = tmp_path / "lists"
+    lists.mkdir()
+    (lists / "reading.md").write_text(
+        "## reading-1\nهر روز یک صفحه کتاب بخوان\n", encoding="utf-8"
+    )
+    stub_llm(monkeypatch, text="هر روز، یک صفحه بخوان")
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(settings(open_ai_api_key="key", lists_dir=lists), now=NOW, send=send)
+
+    assert report.sent == 1
+    assert report.producers == ["note"]
+    assert calls[0]["text"] == "هر روز، یک صفحه بخوان"
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert len(records) == 1
+    assert records[0].kind == "note"
+    assert records[0].ok is True
+    assert records[0].list_name == "reading"
+    assert records[0].note_id == "reading-1"
+    assert records[0].text == calls[0]["text"]
+
+
+def test_main_says_in_persian_when_the_llm_key_is_missing(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+
+    code = main([])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "CRIER_OPEN_AI_API_KEY" in captured.err
+    assert any("\u0600" <= char <= "\u06ff" for char in captured.err)
+    assert "\u200c" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_main_says_in_persian_when_the_lists_directory_is_missing(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    # A key, so the line about the key is not the one under test.
+    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+
+    code = main([])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "lists" in captured.err
+    assert "\u200c" in captured.err
+
+
+def test_the_missing_lists_line_is_not_printed_for_another_producer(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+    stub_credit(monkeypatch, {"remaining_irt": 500_000, "credit_sources": {"packages": []}})
+
+    main(["--only", "credit"])
+
+    assert "lists" not in capsys.readouterr().err
+
+
+def test_a_smoke_run_does_not_warn_about_notes_it_never_asked_for(
+    monkeypatch, tmp_path, capsys
+):
+    """The deploy check is exactly where lists/ may not exist yet, so a warning
+    about it there would be a false alarm on the flow it is meant to reassure."""
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    monkeypatch.setenv("CRIER_SMOKE", "1")
+    monkeypatch.setattr(requests, "post", lambda *a, **kw: FakeResponse({"ok": True}))
+
+    code = main([])
+
+    assert code == 0
+    err = capsys.readouterr().err
+    assert "CRIER_OPEN_AI_API_KEY" not in err
+    assert "lists" not in err

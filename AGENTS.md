@@ -7,8 +7,10 @@ lists, reworded and varied by an LLM a few times a day. Lessons and news summari
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** milestones 1 and 2 are done and deployed — the path end to end, and the AvalAI credit
-watcher. Milestone 3 (the owner's lists) is next.
+**Status:** milestones 1–3 are done — the path end to end, the AvalAI credit watcher, and the
+owner's lists (reading them, choosing a note, rewording it). Both timers are enabled and running;
+the daily one sends one note per run, so until the owner puts his own content in `lists/` it says
+the directory is missing and sends none.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must

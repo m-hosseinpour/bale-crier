@@ -8,13 +8,18 @@ from .config import Settings
 from .history import append
 from .memory import WatcherMemory
 from .models import HistoryRecord, RunReport, SendResult
+from .notes.producer import NoteProducer
 from .producers import Producer, SmokeProducer
 from .watchers.avalai_credit import CreditWatcher
 
 Sender = Callable[..., SendResult]
 
+SMOKE = SmokeProducer.name
+CREDIT = CreditWatcher.name
+NOTE = NoteProducer.name
+
 # Every name `--only` may name, whether or not this run can build it.
-KNOWN_PRODUCERS = (SmokeProducer.name, CreditWatcher.name)
+KNOWN_PRODUCERS = (SMOKE, CREDIT, NOTE)
 
 
 def build_producers(
@@ -29,12 +34,20 @@ def build_producers(
     # No key means the watcher cannot read anything, so it is not registered.
     if settings.avalai_api_key:
         available[CreditWatcher.name] = CreditWatcher(settings, memory)
+    # Same for the rewording: no key, no note.
+    if settings.open_ai_api_key:
+        available[NoteProducer.name] = NoteProducer(settings)
 
     if only is not None:
         unknown = [name for name in only if name not in KNOWN_PRODUCERS]
         if unknown:
             raise ValueError(f"unknown producer name: {', '.join(unknown)}")
         return [available[name] for name in only if name in available]
+
+    if settings.smoke:
+        # The smoke producer is the deploy check, and it stays one fixed message: a
+        # run that is proving the path must not also spend a note on the owner.
+        return [available[SmokeProducer.name]]
 
     return [producer for producer in available.values() if not producer.own_timer]
 
@@ -70,6 +83,7 @@ def run_once(
                 ts=now,
                 kind=bulletin.kind,
                 text=bulletin.text,
+                list_name=bulletin.list_name,
                 note_id=bulletin.note_id,
                 ok=result.ok,
             ),
