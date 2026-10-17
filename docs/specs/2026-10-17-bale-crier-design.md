@@ -6,15 +6,18 @@ reasons behind it; `AGENTS.md` keeps the summary and points here.
 ## What it is
 
 One server-side bot that pushes into a single Bale chat everything the owner
-needs told. Two families of message, one channel:
+needs told. Three families of message, one channel:
 
 - **alerts** about external state — the first one is AvalAI credit running out;
 - **notes** drawn from the owner's own lists, reworded by an LLM so the same
   item does not arrive in the same words twice. The rewording's tone may be warm
-  and motivational; nothing is appended to it (settled 2026-10-17).
+  and motivational; nothing is appended to it (settled 2026-10-17);
+- **news** — the day's AI trends, drawn from a web feed and written in Persian.
+  It is a subsystem of its own, designed in
+  `2026-10-17-news-digest-design.md` (settled 2026-10-17).
 
-Lessons and news summaries come later. Nothing here is channel-agnostic: Bale is
-the only channel, and alerts are Bale messages too.
+The owner's آموزش comes later. Nothing here is channel-agnostic: Bale is the
+only channel, and alerts are Bale messages too.
 
 ## Vocabulary (settled 2026-10-17)
 
@@ -84,7 +87,7 @@ and registering it — not editing the run loop, the sender, or the history.
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Note, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
+  models.py      Note, Story, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
   producers.py   the Producer protocol; a registry joins when a second producer does
   bale.py        the sender (sendMessage today; media later)
   history.py     append-only JSONL with a size cap
@@ -95,8 +98,10 @@ bale_crier/
   cli.py         the entry point
   watchers/      one module per watcher; avalai_credit.py is the first
   notes/         reading the lists, choosing a note, rewording it
+  news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/bale-crier.service + .timer          the daily bulletins
 deploy/user/bale-crier-credit.service + .timer   the hourly credit check
+deploy/user/bale-crier-news.service + .timer     the daily news digest
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
 data/history.jsonl
@@ -185,12 +190,13 @@ calendar spec. Changing the times means editing the unit and running
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
 producer has no timer of its own — with two or three runs a day that is the
-owner's "several per day". The credit watcher has a timer of its own, so it is
-not part of those runs.
+owner's "several per day". The credit watcher and the news digest each have a
+timer of their own, so they are not part of those runs.
 
-There are therefore two timers: `bale-crier.timer` for the daily bulletins, and
+There are therefore three timers: `bale-crier.timer` for the daily bulletins,
 `bale-crier-credit.timer`, hourly, which runs the same program narrowed with
-`--only credit`.
+`--only credit`, and `bale-crier-news.timer`, daily, which runs it with
+`--only news` for the AI-news digest.
 
 ## Configuration
 
@@ -265,6 +271,9 @@ leaves it out so the two timers cannot race over the same latch.
    into numbers, the threshold and its latch, the watcher memory that lets the
    latch outlive a run, and a timer of its own.
 3. **The owner's lists.** Reading the lists, choosing a note, rewording it.
+4. **The news digest.** The day's AI trends from a Google News feed: the fetch and
+   parse, the hard filter and the seen set, the model's selection, and a timer of
+   its own. Designed in `2026-10-17-news-digest-design.md`.
 
 Each milestone carries its own pytest tests. Milestone 1 is not "done" until a
 real message arrives in Bale.
@@ -285,5 +294,6 @@ send is verified by hand, once per milestone.
   named so far.
 - The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
   confirmed; the hourly credit check needs no confirmation.
-- Whether news summaries move here from `bale-news-digest`, or stay there and
-  are consumed. Exactly one must win when that work starts.
+- **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project
+  keeps its own news; the news digest is a new, different thing — the day's AI trends from a web
+  feed — and has its own design (`2026-10-17-news-digest-design.md`).
