@@ -46,7 +46,7 @@ is the `llm.py` that milestone 3 already built.
   the two cannot race over one seen set.
 - The bot reports and does not advise: no buying suggestion, no "nearly out" colour, in any
   bulletin. Asserted on a forbidden word list rather than trusted to the eye.
-- Defaults: the feed URL is the owner's query (below), `CRIER_NEWS_MAX_ITEMS` is 5,
+- Defaults: the feed URL is the owner's query (written out in Task 1), `CRIER_NEWS_MAX_ITEMS` is 5,
   `CRIER_NEWS_BLOCKLIST` empty means the built-in default. `CANDIDATE_LIMIT` is 60,
   `SEEN_LIMIT` is 500, HTTP timeout 30s.
 
@@ -137,7 +137,9 @@ through.
   `None` exactly when the read failed; `error` is then a short code-like string and never
   empty (`"transport error"`, `"HTTP 403"`, `"unparsable feed"`). On success `error` is `""`.
 - `FeedReader` — `Callable[..., FeedRead]`, the alias a caller stubs in tests.
-- `DEFAULT_QUERY: str` — the owner's query, verbatim and human-readable.
+- `DEFAULT_QUERY: str` — the owner's query of 2026-10-17, verbatim and human-readable, and the one
+  place it is written in the code:
+  `"new features" OR "now available" OR "update" OR "version" AI (tool OR model) -investment -funding -startup -stocks when:1d`
 - `DEFAULT_FEED_URL: str` — `https://news.google.com/rss/search?q=` + `quote(DEFAULT_QUERY)`,
   the one place the feed's URL shape is written.
 - `fetch_feed(*, url: str, timeout: int = 30) -> FeedRead`
@@ -176,9 +178,16 @@ through.
 
 **Notes:**
 - The parse reads no settings and touches no network; only `fetch_feed` does.
+- `pubDate` is read with `email.utils.parsedate_to_datetime`, not `datetime.fromisoformat`: the
+  feed's `"Sat, 17 Oct 2026 09:43:16 GMT"` is RFC 822 and `fromisoformat` cannot read it.
 - `fetch_feed` is the boundary and returns a value; `parse_feed` is a pure function and raises,
   because a caller that cannot tell "unreadable" from "empty" is the bug this whole shape
-  exists to prevent.
+  exists to prevent. `xml.etree.ElementTree.ParseError` is a `SyntaxError` and **not** a
+  `ValueError`, so `parse_feed` must catch it and re-raise its own `ValueError` — otherwise the
+  "a 200 that is not a feed" case escapes as an unhandled exception.
+- The tests locate the fixture as `Path(__file__).parent / "fixtures" / "news_feed.xml"`: every
+  test module in this project `chdir`s into a tmp directory, so a path relative to the working
+  directory would not resolve.
 - The suffix strip uses the item's own `<source>` text verbatim, because that is what Google
   appends; the *displayed* source is the hostname when that text is a URL. Two different
   strings on purpose.
@@ -283,10 +292,16 @@ through.
   `produce(now: datetime) -> list[Bulletin]` returning zero or one bulletin with
   `kind="news"`, `note_id` and `list_name` left `None`.
 - The memory blob it owns is `{"seen": [guid, …]}`, written through `memory.set("news", …)`.
+- `produce` calls `read` with `url=settings.news_feed_url` and `timeout=settings.http_timeout`,
+  and `complete` with `key=settings.open_ai_api_key`, `model=settings.open_ai_model`,
+  `base_url=settings.open_ai_base_url` and `timeout=settings.http_timeout` — the same shape the
+  note producer already uses.
 - `Settings` gains `news_feed_url: str = DEFAULT_FEED_URL`,
   `news_max_items: int = Field(default=5, ge=1)`, `news_blocklist: str = ""`. The default is
   imported from `news/feed.py`, so the feed's URL shape has one home; `feed.py` imports no
-  settings, so there is no cycle.
+  settings, so there is no cycle — **as long as `bale_crier/news/__init__.py` stays a bare
+  marker**: a convenience re-export of `NewsProducer` there would make `config` → `news.feed`
+  pull the producer in and create one.
 - `build_producers` registers the news producer when `settings.open_ai_api_key` is set, exactly
   as the note producer is gated. It is not gated on the feed being reachable: the fetch is the
   producer's business at produce time.
@@ -300,6 +315,9 @@ through.
 - A feed whose every story is blocked gives no bulletin, no model call and no memory write.
 - A feed whose every story is already in the seen set gives no bulletin and no model call.
 - The candidates handed to the model are newest first and capped at `CANDIDATE_LIMIT`.
+- The feed is read with the configured `news_feed_url` and `http_timeout`, and the model is
+  called with the configured model, base URL and timeout — asserted against the stubs, so a
+  configured timeout cannot be silently ignored in favour of the default.
 - With a stub model answering `"1|متن یک"`, the bulletin's text is the digest of the first
   candidate carrying that line, and `kind == "news"`.
 - A failed model call gives one bulletin carrying the English headlines of the newest
@@ -337,6 +355,9 @@ through.
   a run that never asked for a digest.
 - `produce` takes `now` for the `Producer` protocol's sake and does not need it: the seen set is
   keyed by guid, not by time. Say so in the docstring rather than dropping the parameter.
+- `raw_text` adds no cap of its own: the producer slices the newest `max_items` survivors before
+  calling it, because the cap is the settings' business and `raw_text` only renders what it is
+  given.
 
 ### Task 4: The timer, the settings the owner sees, and the documents
 
@@ -360,11 +381,13 @@ through.
 - `AGENTS.md`: the status line no longer says news summaries come later; the vocabulary table
   gains `story`; the layout block lists `news/`; the deploy command enables the news timer.
 - The design spec's "Milestones" marks milestone 4 as built, with a dated line; its `news/` line
-  matches the modules as built.
+  matches the modules as built; its Configuration table lists the three news settings; and its
+  Data model list names `Story`.
 - The news spec's "Still open" records 09:00 as the time that shipped and that the owner has not
   confirmed it, and its "Where it sits in the code" line names the message text's home.
 - The news spec's Testing section says the fixture is the reply actually saved — 54 items — and
-  names `tests/fixtures/news_feed.xml`.
+  names `tests/fixtures/news_feed.xml`. Its "The source" section's 53-item figure stays as the
+  dated measurement it is, with a line saying the count moves day to day.
 - No file still describes the digest as unbuilt.
 
 **Notes:**
