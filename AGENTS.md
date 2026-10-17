@@ -74,6 +74,8 @@ tests/          pytest
   the prefix `بی` (`بی‌پاسخ`) — but **not** in the prefix `نا`, which is written connected
   (`ناموفق`, `نامعتبر`, `نامناسب`). The generating model drops the character otherwise.
 - Commits: OpenCode as author and committer, the owner as `Co-authored-by`.
+- **Every commit is pushed as soon as it is made** — `git push origin main`. One command covers both
+  remotes (forgejo and GitHub), and a commit that only exists locally is not delivered work.
 
 ## Rules a session must not break
 
