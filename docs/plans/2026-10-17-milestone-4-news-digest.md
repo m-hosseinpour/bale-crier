@@ -20,7 +20,8 @@ is the `llm.py` that milestone 3 already built.
 **Spec:** `docs/specs/2026-10-17-news-digest-design.md` (the digest's own design, settled
 2026-10-17). The main design's "Milestones" section names this as milestone 4.
 
-**Status:** not started.
+**Status:** built, 2026-10-17 — the four tasks are done and `uv run pytest` is green; the live
+checks in the Acceptance Criteria are run by hand.
 
 ## Global Constraints
 
@@ -403,3 +404,29 @@ through.
 
 Dated 2026-10-17, so a later reader sees the plan's current state rather than the state it was
 written in.
+
+- **An empty `CRIER_NEWS_FEED_URL` means the owner's query, not an empty URL.** Pydantic-settings
+  reads a shipped `CRIER_NEWS_FEED_URL=` as `""` and does not fall back to the field default, so
+  `.env.example` could not list the setting the way it lists every other one without breaking
+  every fetch. A `model_validator` now fills the default when the value is blank — the same
+  ruling the project already applies to an empty `CRIER_OPEN_AI_API_KEY` and to the empty
+  blocklist — and `.env.example` ships the line empty and active, with a test pinning it.
+- **`digest_text` keeps the link when a story's source is empty.** The first implementation
+  dropped the whole `منبع:` line, which also dropped the link — the owner's only way to reach
+  the story. It now renders the bare link instead. Google always sends a `<source>`, so this
+  only shows on a shape change, which is exactly when losing the link would matter most.
+- **The plan's "a second `produce` on the same feed gives no bulletin" holds only for a
+  one-story feed.** With more than one survivor the second run legitimately offers the story the
+  first run did not carry. The test uses a one-story feed for that case; the multi-story seen
+  behaviour is covered by the failure-bulletin case, which marks its stories seen.
+- **The note and news producers share one `open_ai_api_key` gate in `build_producers`**, rather
+  than two identical `if` blocks back to back. No behaviour change; recorded because the plan
+  described the news registration as its own condition.
+- **The `--only news` CLI test needs one HTTP stub answering both shapes.** Bale and the LLM both
+  post through `requests`, so the stub body carries `{"ok": …}` and `{"choices": …}` together.
+  The plan did not mention it, and a stub answering only one shape fails for a reason that has
+  nothing to do with the digest.
+- **Milestone 3's plan still said `**Status:** not started.`** It is a present-tense claim about
+  a milestone the project's own status line already called done, so it now reads `complete,
+  2026-10-17`. The milestone 1–3 plans are otherwise left as the records of their own moment.
+

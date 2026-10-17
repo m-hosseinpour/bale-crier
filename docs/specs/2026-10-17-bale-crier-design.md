@@ -22,7 +22,8 @@ only channel, and alerts are Bale messages too.
 ## Vocabulary (settled 2026-10-17)
 
 Five words, three layers. The names came out of what the sources actually hold,
-not the other way round.
+not the other way round. The news digest adds a sixth, `story`, in its own design
+(`2026-10-17-news-digest-design.md`).
 
 | word | what it is | who owns it |
 | --- | --- | --- |
@@ -112,7 +113,9 @@ tests/
 ## Data model
 
 - `Note` — `list_name`, `id`, `text`.
-- `Bulletin` — `kind` (`alert` | `note`, more later), `text`, `note_id` optional,
+- `Story` — `title`, `source`, `link`, `guid`, `published` (timezone-aware UTC when the
+  feed gave a date, `None` when it did not).
+- `Bulletin` — `kind` (`smoke` | `alert` | `note` | `news`), `text`, `note_id` optional,
   `list_name` optional (which list a note came from).
 - history line — `{ts, kind, list_name, note_id, text, ok}`.
 - watcher memory — one JSON object per producer name, in
@@ -212,6 +215,9 @@ There are therefore three timers: `bale-crier.timer` for the daily bulletins,
 | `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
 | `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` | how often an unreadable credit may speak (default 24) |
+| `CRIER_NEWS_FEED_URL` | the news digest's Google News RSS URL (default: the owner's query) |
+| `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 5, at least 1) |
+| `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
 Settings go through `pydantic-settings`, which gives validation and the
 `CRIER_` prefix in one place.
@@ -273,7 +279,7 @@ leaves it out so the two timers cannot race over the same latch.
 3. **The owner's lists.** Reading the lists, choosing a note, rewording it.
 4. **The news digest.** The day's AI trends from a Google News feed: the fetch and
    parse, the hard filter and the seen set, the model's selection, and a timer of
-   its own. Designed in `2026-10-17-news-digest-design.md`.
+   its own. Designed in `2026-10-17-news-digest-design.md`. **Built 2026-10-17.**
 
 Each milestone carries its own pytest tests. Milestone 1 is not "done" until a
 real message arrives in Bale.

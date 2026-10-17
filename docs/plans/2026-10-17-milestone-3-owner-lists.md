@@ -18,7 +18,8 @@ the LLM call is one `requests.post`, exactly like the Bale sender and the credit
 **Spec:** `docs/specs/2026-10-17-bale-crier-design.md`, sections "Sources and storage",
 "Choosing a note", "Rewording (the LLM)" and "Configuration".
 
-**Status:** not started.
+**Status:** complete, 2026-10-17 — the amendments at the end of this plan record what
+implementation changed.
 
 ## Global Constraints
 

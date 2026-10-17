@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from bale_crier.config import ConfigError, load_settings
+from bale_crier.news.feed import DEFAULT_FEED_URL
 
 PERSIAN = "\u0600-\u06FF"
 
@@ -147,3 +148,51 @@ def test_an_explicit_llm_key_wins_over_the_inherited_one(monkeypatch):
 
     assert settings.open_ai_api_key == "aa-llm"
     assert settings.avalai_api_key == "aa-credit"
+
+
+def test_the_news_settings_default_to_the_owners_query(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+
+    settings = load_settings()
+
+    assert settings.news_max_items == 5
+    assert settings.news_feed_url == DEFAULT_FEED_URL
+    assert settings.news_blocklist == ""
+
+
+def test_an_empty_news_feed_url_is_the_default_not_an_empty_url(monkeypatch):
+    """`.env.example` ships `CRIER_NEWS_FEED_URL=`, and an empty URL would fail
+    every fetch — so empty means the owner's query, as it does for the blocklist."""
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_NEWS_FEED_URL", "")
+
+    assert load_settings().news_feed_url == DEFAULT_FEED_URL
+
+
+def test_the_news_settings_take_their_values_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_NEWS_FEED_URL", "https://example.test/rss?q=x")
+    monkeypatch.setenv("CRIER_NEWS_MAX_ITEMS", "3")
+    monkeypatch.setenv("CRIER_NEWS_BLOCKLIST", "ban, funding")
+
+    settings = load_settings()
+
+    assert settings.news_feed_url == "https://example.test/rss?q=x"
+    assert settings.news_max_items == 3
+    assert settings.news_blocklist == "ban, funding"
+
+
+def test_a_news_cap_below_one_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_NEWS_MAX_ITEMS", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    message = str(caught.value)
+    assert "CRIER_NEWS_MAX_ITEMS" in message
+    assert any("\u0600" <= char <= "\u06ff" for char in message)

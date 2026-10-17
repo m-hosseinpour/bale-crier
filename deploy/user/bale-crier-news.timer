@@ -1,0 +1,22 @@
+; bale-crier news timer — user-level. See bale-crier-news.service for the install notes.
+;
+; This timer, not the service, is the unit to enable:
+;   systemctl --user enable --now bale-crier-news.timer
+;
+; The time is literal on purpose: systemd expands no environment variable in a unit file, so a
+; schedule setting would silently never fire. To change the time, edit the OnCalendar line below
+; and run `systemctl --user daemon-reload`.
+;
+; The daily bale-crier.timer does not run the digest — it owns this timer — so the two timers
+; cannot race over one seen set.
+
+[Unit]
+Description=Send the AI-news digest daily
+
+[Timer]
+OnCalendar=09:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

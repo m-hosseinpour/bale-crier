@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 
 from .config import ConfigError, load_settings
-from .run import CREDIT, KNOWN_PRODUCERS, NOTE, run_once
+from .run import CREDIT, KNOWN_PRODUCERS, NEWS, NOTE, run_once
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,7 +18,10 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         choices=KNOWN_PRODUCERS,
         metavar="NAME",
-        help="run only this producer; repeatable. The credit watcher has a timer of its own.",
+        help=(
+            "run only this producer; repeatable. The credit watcher and the news "
+            "digest have timers of their own."
+        ),
     )
     try:
         args = parser.parse_args(argv)
@@ -50,6 +53,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.only and CREDIT in args.only and not settings.avalai_api_key:
         print(
             "ناظر اعتبار بدون کلید اجرا نمی‌شود: CRIER_AVALAI_API_KEY تنظیم نشده است.",
+            file=sys.stderr,
+        )
+    if args.only and NEWS in args.only and not settings.open_ai_api_key:
+        print(
+            "خبرنامه بدون کلید مدل ساخته نمی\u200cشود: "
+            "CRIER_OPEN_AI_API_KEY (یا CRIER_AVALAI_API_KEY) تنظیم نشده است.",
             file=sys.stderr,
         )
 

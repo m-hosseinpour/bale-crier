@@ -43,8 +43,9 @@ Measured on 2026-10-17, so a later reader does not have to probe again:
 - **The HTML search page is not fetchable from a server.** `https://news.google.com/search?q=…`
   answers `302` to `google.com/sorry` — Google's bot check. Scraping it is a dead end.
 - **The RSS form works.** The same query on `/rss/search` answers `200`,
-  `application/xml; charset=utf-8`, and carried **53 items** for one day. Each item has `title`
-  (with the source name appended after `" - "`), `link`, `guid`, `pubDate` and `source`.
+  `application/xml; charset=utf-8`, and carried **53 items** for one day — a figure that moves
+  day to day with the news, so nothing depends on it. Each item has `title` (with the source
+  name appended after `" - "`), `link`, `guid`, `pubDate` and `source`.
 - **The item link is a Google redirect**, not the publisher's URL, and `requests` cannot resolve
   it: the page is a JavaScript shell, and a probe of Google's `batchexecute` endpoint came back
   with a null result. A real browser does resolve it — headless Chromium reached
@@ -165,7 +166,7 @@ not, so the digest does not quietly start arriving in English every day.
 
 ```
 bale_crier/news/feed.py       the Google News RSS fetch and parse, into Story objects
-bale_crier/news/select.py     the hard filter, the seen set, the prompt, the answer's parse
+bale_crier/news/select.py     the hard filter, the seen set, the prompt, the answer's parse, the message text
 bale_crier/news/producer.py   NewsProducer
 bale_crier/models.py          + Story
 deploy/user/bale-crier-news.service + .timer
@@ -177,8 +178,9 @@ to the missing-key warning. Nothing else on the existing path changes.
 
 ## Testing
 
-pytest, all offline. A real feed response is saved as a fixture — the 53-item reply measured on
-2026-10-17 — so the parser is tested against the real shape rather than one invented for the test.
+pytest, all offline. A real feed response is saved as a fixture — the 54-item reply actually saved
+at `tests/fixtures/news_feed.xml`, captured live on 2026-10-17 — so the parser is tested against
+the real shape rather than one invented for the test.
 Covered: parsing into stories (title, source, link, guid, published), the title's source suffix and
 a URL-shaped source, the word-boundary filter, the seen-set filter and its cap, the candidate cap
 and the newest-first order, the prompt, the index-and-sentence answer's parse including a bad index
@@ -187,7 +189,7 @@ and an unparsable line, the rendered message, both failure bulletins, the produc
 
 ## Still open
 
-- The daily time is 09:00 as a default the owner has not confirmed.
+- The daily time shipped as 09:00 in `bale-crier-news.timer`; the owner has not confirmed it.
 - The query is the owner's to tighten. The default is the one given on 2026-10-17; the first digests
   will show whether the filter words need adding.
 - The feed is parsed with the standard library's `ElementTree`, which is not hardened against

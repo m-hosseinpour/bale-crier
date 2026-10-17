@@ -50,6 +50,20 @@ class Note(BaseModel):
     text: str
 
 
+class Story(BaseModel):
+    """One entry in the news feed: a headline, its source and its link.
+
+    ``published`` is timezone-aware UTC whenever the feed gave a date, and
+    ``None`` when it did not — a story without a date is still a story.
+    """
+
+    title: str
+    source: str
+    link: str
+    guid: str
+    published: datetime | None
+
+
 class Bulletin(BaseModel):
     """One message that goes to Bale. Kinds so far: ``smoke``, ``alert``, ``note``."""
 

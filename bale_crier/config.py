@@ -5,6 +5,8 @@ from pathlib import Path
 from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .news.feed import DEFAULT_FEED_URL
+
 ENV_PREFIX = "CRIER_"
 
 
@@ -37,6 +39,13 @@ class Settings(BaseSettings):
     watchers_state_path: Path = Path("data/watchers.json")
     # Bounded above zero: a window of zero would speak on every failed read.
     credit_unknown_alert_hours: float = Field(default=24, gt=0)
+    # The default lives in `news/feed.py`, where the feed's URL shape has its one
+    # home, so the query is not written out twice.
+    news_feed_url: str = DEFAULT_FEED_URL
+    # Bounded below: a cap of zero asks the model for nothing while still spending
+    # a call, and sends a digest with a header and no story under it.
+    news_max_items: int = Field(default=5, ge=1)
+    news_blocklist: str = ""
 
     @model_validator(mode="after")
     def _inherit_the_llm_key(self) -> "Settings":
@@ -45,6 +54,15 @@ class Settings(BaseSettings):
         # paste the same secret twice. An explicit key always wins.
         if not self.open_ai_api_key:
             self.open_ai_api_key = self.avalai_api_key or None
+        return self
+
+    @model_validator(mode="after")
+    def _default_the_feed_url(self) -> "Settings":
+        # A shipped `CRIER_NEWS_FEED_URL=` would otherwise be read as an empty URL
+        # rather than as "unset", so every fetch would fail. Empty means the
+        # owner's query, exactly as empty means the built-in blocklist.
+        if not self.news_feed_url.strip():
+            self.news_feed_url = DEFAULT_FEED_URL
         return self
 
 

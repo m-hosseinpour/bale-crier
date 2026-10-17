@@ -70,6 +70,26 @@ def stub_llm(monkeypatch, text="متن تازهٔ امروز"):
     )
 
 
+FEED_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<item>
+  <title>Alpha release arrives - The Outlet</title>
+  <link>https://news.google.com/rss/articles/alpha</link>
+  <guid isPermaLink="false">guid-alpha</guid>
+  <pubDate>Sat, 17 Oct 2026 09:43:16 GMT</pubDate>
+  <source url="https://the-outlet.test/">The Outlet</source>
+</item>
+</channel></rss>"""
+
+
+def stub_feed(monkeypatch, body: bytes = FEED_XML):
+    class FeedResponse:
+        status_code = 200
+        content = body
+
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: FeedResponse())
+
+
 def test_build_producers_is_empty_without_smoke(tmp_path):
     assert build_producers(settings(), memory=memory(tmp_path)) == []
 
@@ -304,6 +324,48 @@ def test_no_llm_key_means_no_note_producer_even_under_only(tmp_path):
     assert producers == []
 
 
+def test_the_daily_run_leaves_the_news_digest_out(tmp_path):
+    producers = build_producers(settings(open_ai_api_key="llm-key"), memory=memory(tmp_path))
+
+    names = [producer.name for producer in producers]
+    assert names == ["note"]
+    assert "news" not in names
+
+
+def test_only_news_selects_the_digest_alone(tmp_path):
+    producers = build_producers(
+        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        memory=memory(tmp_path),
+        only=["news"],
+    )
+
+    assert [producer.name for producer in producers] == ["news"]
+
+
+def test_no_llm_key_means_no_news_producer_even_under_only(tmp_path):
+    producers = build_producers(settings(), memory=memory(tmp_path), only=["news"])
+
+    assert producers == []
+
+
+def test_a_news_run_sends_one_digest_and_records_what_went(tmp_path, monkeypatch):
+    stub_feed(monkeypatch)
+    stub_llm(monkeypatch, text="1|متن یک")
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(settings(open_ai_api_key="key"), now=NOW, send=send, only=["news"])
+
+    assert report.sent == 1
+    assert report.producers == ["news"]
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert len(records) == 1
+    assert records[0].kind == "news"
+    assert records[0].ok is True
+    assert records[0].note_id is None
+    assert records[0].list_name is None
+    assert records[0].text == calls[0]["text"]
+
+
 def test_a_note_run_sends_one_note_and_records_what_went(tmp_path, monkeypatch):
     lists = tmp_path / "lists"
     lists.mkdir()
@@ -386,3 +448,42 @@ def test_a_smoke_run_does_not_warn_about_notes_it_never_asked_for(
     err = capsys.readouterr().err
     assert "CRIER_OPEN_AI_API_KEY" not in err
     assert "lists" not in err
+
+
+def test_only_news_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+
+    code = main(["--only", "news"])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "CRIER_OPEN_AI_API_KEY" in captured.err
+    assert any("\u0600" <= char <= "\u06ff" for char in captured.err)
+    # «نمی‌شود»: a half-space word written without U+200C still reads as Persian.
+    assert "\u200c" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_only_news_does_not_warn_about_notes_it_never_asked_for(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+    stub_feed(monkeypatch)
+    # One HTTP stub covers both posts: Bale reads `ok`, the LLM reads `choices`.
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *a, **kw: FakeResponse(
+            {"ok": True, "choices": [{"message": {"content": "1|متن یک"}}]}
+        ),
+    )
+
+    code = main(["--only", "news"])
+
+    assert code == 0
+    err = capsys.readouterr().err
+    assert "lists" not in err
+    assert "CRIER_OPEN_AI_API_KEY" not in err
