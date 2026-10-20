@@ -75,6 +75,25 @@ def test_blocked_matches_on_word_boundaries():
     assert not blocked("She praises the new model", DEFAULT_BLOCKLIST)
 
 
+def test_the_default_blocks_consumer_device_titles():
+    # The titles that came through the real feed with the device words in them.
+    assert blocked("Standard iPhone 17 misses out on two AI Siri features in iOS 27", DEFAULT_BLOCKLIST)
+    assert blocked("The Top 5 New Features in the iOS 27 Beta You Must Try", DEFAULT_BLOCKLIST)
+    assert blocked("4 Cool New Features Your Fitbit Air Is Getting In October 2026", DEFAULT_BLOCKLIST)
+    assert blocked("ColorOS 17: List of Realme phones eligible for Android 17 update", DEFAULT_BLOCKLIST)
+
+
+def test_the_default_keeps_a_model_release():
+    assert not blocked("DeepSeek released an updated V4.1-Flash model with higher scores", DEFAULT_BLOCKLIST)
+    assert not blocked("Nvidia Releases Open-Weight Bolt Model for Local AI Agents", DEFAULT_BLOCKLIST)
+    assert not blocked("AI tool used on facial photo to predict cancer survival", DEFAULT_BLOCKLIST)
+
+
+def test_the_default_blocks_the_plural_forms_the_titles_used():
+    assert blocked("NVIDIA RTX Spark laptops are now available globally", DEFAULT_BLOCKLIST)
+    assert blocked("Intel Arc GPU drivers bring gaming gains", DEFAULT_BLOCKLIST)
+
+
 def test_blocked_does_not_fire_on_a_word_it_was_not_given():
     assert not blocked("A lawsuit against the company", ("funding",))
 

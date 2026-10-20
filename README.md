@@ -124,7 +124,10 @@ then drops what the owner does not want to read before the model ever sees it.
 
 **The hard filter** drops a story whose title contains one of `CRIER_NEWS_BLOCKLIST`'s words,
 case-insensitive and on word boundaries; when the setting is empty the built-in default is used:
-`funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings`. **The seen set** then
+`funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings, iPhone, iOS, Android,
+gaming, laptop, laptops, GPU, driver, drivers, DLSS, Fitbit, Sims, Chrome, Netflix` — the first
+eight are news types the owner does not want, the rest are consumer-device words, because the
+feed's phrasing also matches phone, gaming and driver releases. **The seen set** then
 drops the stories the digest already carried. It is the producer's own memory, in
 `CRIER_WATCHERS_STATE_PATH` under the name `news`, holding the guids the digest carried, newest
 last and capped at 500 — deliberately separate from the history, which records what the owner read.

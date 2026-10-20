@@ -35,6 +35,24 @@ DEFAULT_BLOCKLIST: tuple[str, ...] = (
     "regulation",
     "layoffs",
     "earnings",
+    # Consumer-device words: the feed's phrasing ("new features", "now available",
+    # "update") also matches phone, gaming and driver releases, and these are the
+    # words the real titles carried. Measured on three days of feeds: they drop the
+    # device news and no story about a model or a tool.
+    "iPhone",
+    "iOS",
+    "Android",
+    "gaming",
+    "laptop",
+    "laptops",
+    "GPU",
+    "driver",
+    "drivers",
+    "DLSS",
+    "Fitbit",
+    "Sims",
+    "Chrome",
+    "Netflix",
 )
 SEEN_LIMIT = 500
 CANDIDATE_LIMIT = 60

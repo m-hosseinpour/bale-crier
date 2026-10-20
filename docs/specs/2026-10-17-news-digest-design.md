@@ -82,7 +82,12 @@ Both, in that order — the owner's ruling of 2026-10-17.
 the model ever sees it. Matching is case-insensitive and on word boundaries, so `ban` does not fire
 on `urban`. The list is the owner's: it comes from `CRIER_NEWS_BLOCKLIST` (comma-separated), and
 when that is empty the built-in default is used —
-`funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings`. A domain blocklist was
+`funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings, iPhone, iOS, Android,
+gaming, laptop, laptops, GPU, driver, drivers, DLSS, Fitbit, Sims, Chrome, Netflix`. The first
+eight are news types the owner does not want; the rest are consumer-device words, added after
+measuring three days of feeds, where the phrasing `new features`/`now available`/`update` pulled
+in phone, gaming and driver releases. Matching is whole-word, so the plural forms that the titles
+used are listed too. A domain blocklist was
 considered and dropped: the owner chose words only.
 
 **The model** then reads the survivors and returns the digest. One call per bulletin, the project's
