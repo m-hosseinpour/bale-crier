@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     news_feed_url: str = DEFAULT_FEED_URL
     # Bounded below: a cap of zero asks the model for nothing while still spending
     # a call, and sends a digest with a header and no story under it.
-    news_max_items: int = Field(default=5, ge=1)
+    news_max_items: int = Field(default=10, ge=1)
     news_blocklist: str = ""
 
     @model_validator(mode="after")

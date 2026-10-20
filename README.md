@@ -130,7 +130,7 @@ drops the stories the digest already carried. It is the producer's own memory, i
 last and capped at 500 — deliberately separate from the history, which records what the owner read.
 
 What survives goes to the model newest first, capped at 60 candidates; it picks at most
-`CRIER_NEWS_MAX_ITEMS` (default 5) and writes one short Persian line for each, answering with
+`CRIER_NEWS_MAX_ITEMS` (default 10) and writes one short Persian line for each, answering with
 indices the code maps back to the real title, source and link — so a model that invents a link is
 impossible rather than merely unlikely. The message is a fixed Persian header, then each story
 numbered with Persian digits as its Persian line, then `منبع: <source> — <link>`. The link is a

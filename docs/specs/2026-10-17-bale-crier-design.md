@@ -217,7 +217,7 @@ There are therefore three timers: `bale-crier.timer` for the daily bulletins,
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
 | `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` | how often an unreadable credit may speak (default 24) |
 | `CRIER_NEWS_FEED_URL` | the news digest's Google News RSS URL (default: the owner's query) |
-| `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 5, at least 1) |
+| `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
 Settings go through `pydantic-settings`, which gives validation and the

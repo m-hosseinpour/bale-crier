@@ -159,7 +159,7 @@ def test_the_news_settings_default_to_the_owners_query(monkeypatch):
 
     settings = load_settings()
 
-    assert settings.news_max_items == 5
+    assert settings.news_max_items == 10
     assert settings.news_feed_url == DEFAULT_FEED_URL
     assert settings.news_blocklist == ""
 

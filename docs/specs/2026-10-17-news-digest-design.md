@@ -88,7 +88,7 @@ considered and dropped: the owner chose words only.
 **The model** then reads the survivors and returns the digest. One call per bulletin, the project's
 rule. It is told to keep each headline's meaning with no claim of its own added, to write fresh
 Persian with a correct U+200C in every half-space word, to put the most important first, to choose
-at most `CRIER_NEWS_MAX_ITEMS` (default 5), and to carry one story per event — which is the only
+at most `CRIER_NEWS_MAX_ITEMS` (default 10), and to carry one story per event — which is the only
 place the four outlets carrying one DeepSeek release are collapsed, since the seen set works by guid
 and those are four guids.
 
@@ -154,7 +154,7 @@ the two cannot race over one seen set.
 | variable | meaning |
 | --- | --- |
 | `CRIER_NEWS_FEED_URL` | the Google News RSS URL (default: the owner's query) |
-| `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 5, at least 1) |
+| `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
 The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` — or `CRIER_AVALAI_API_KEY`, which it inherits
