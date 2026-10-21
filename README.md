@@ -181,9 +181,13 @@ A failed read of the API is a bulletin of its own, at most once every
 found them, so a change it could not see still speaks on the next run that can — except on the very
 first run, where there were no numbers yet and the next successful run takes the silent baseline.
 
-It runs every three hours on `bale-crier-changedetection.timer`, with `--only changedetection` — the
-same interval changedetection itself checks a page with here, because a change is only visible once
-changedetection has fetched the page and seen it.
+It runs every three hours at half past (00:30, 03:30, … 21:30), on
+`bale-crier-changedetection.timer` with `--only changedetection`. Three hours is how often
+changedetection itself fetches a page here (its global `time_between_check`); the half hour puts
+the read just after that fetch instead of somewhere in the middle of its cycle. changedetection has
+no global clock — each watch is fetched three hours after its own last fetch — so its pages were
+aligned to the top of the hour once, by forcing a recheck of every active watch. If they drift over
+the months, re-align them the same way and the half hour is honest again.
 
 ## The news digest
 
@@ -280,7 +284,7 @@ is not killed while it waits out a feed fetch, a model call and a send in turn. 
 
 The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
 randomized delay in `bale-crier.timer`; `hourly` with a two-minute spread in `bale-crier-credit.timer`
-and in `bale-crier-disk.timer`; `*-*-* 00/3:00:00` with a two-minute spread in
+and in `bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a two-minute spread in
 `bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in `bale-crier-news.timer`.
 systemd expands no environment variable in a unit file, so a schedule setting would silently never
 fire. To change a time, edit the unit, copy it again and run `systemctl --user daemon-reload`.

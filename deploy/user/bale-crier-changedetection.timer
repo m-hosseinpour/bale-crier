@@ -4,19 +4,26 @@
 ; This timer, not the service, is the unit to enable:
 ;   systemctl --user enable --now bale-crier-changedetection.timer
 ;
-; Every three hours (00, 03, 06, … 21), because that is how often changedetection.io itself
-; looks at a page here: its global `time_between_check` is three hours. Reading faster would
-; cost a request on the loopback and tell the owner nothing sooner, since a change is only
-; visible once changedetection has fetched the page and seen it.
+; Every three hours at half past (00:30, 03:30, … 21:30), half an hour after
+; changedetection.io fetches its pages. changedetection keeps a *per-watch* phase — each
+; page is fetched three hours after its own last fetch — so "half past" is only half an
+; hour after it because those phases were aligned to the hour once, by forcing a recheck
+; of every active watch at 18:00 on 2026-10-21. Reading before changedetection has fetched
+; would report last round's change, and reading hours later would deliver it hours late.
+;
+; Three hours, not less: that is how often changedetection itself looks at a page here
+; (its global `time_between_check`), so a faster read would cost a request and tell the
+; owner nothing sooner. If changedetection's phases drift over the months, re-align them
+; by forcing a recheck of every watch at the top of the hour.
 ;
 ; The daily bale-crier.timer does not run this watcher — it owns this timer — so the two
 ; timers cannot race over the watermarks.
 
 [Unit]
-Description=Check changedetection.io for changed pages every three hours
+Description=Check changedetection.io for changed pages every three hours, half past
 
 [Timer]
-OnCalendar=*-*-* 00/3:00:00
+OnCalendar=*-*-* 00/3:30:00
 Persistent=true
 RandomizedDelaySec=2m
 

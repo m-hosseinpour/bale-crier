@@ -401,14 +401,21 @@ watermarks are left exactly as they were found, so a change the failure could no
 see still speaks on the next run that can; a first read that fails has no numbers to
 leave, and the first-run rule then takes the baseline silently.
 
-**It runs every three hours**, on `bale-crier-changedetection.timer` with
-`--only changedetection`. Three hours is the owner's choice (2026-10-21), and it is
-also the interval changedetection itself checks a page with here (its global
-`time_between_check`): a change is only visible once changedetection has fetched
-the page and seen it, so reading the API more often would cost a request and tell
-the owner nothing sooner. The cost is a delivery delay of up to six hours after the
-change itself (three on average, since the two three-hour clocks are independent),
-which the owner accepted over asking changedetection to fetch every page every hour.
+**It runs every three hours at half past**, on `bale-crier-changedetection.timer`
+with `--only changedetection`. Three hours is the owner's choice (2026-10-21): it is
+also the interval changedetection itself fetches a page with here (its global
+`time_between_check`), so reading the API more often would cost a request and tell
+the owner nothing sooner.
+
+The half hour is the owner's second ruling (2026-10-21): read just after
+changedetection's fetch, not somewhere in the middle of its cycle. changedetection
+has no global check clock — each watch keeps its own phase, three hours from its own
+last fetch — so "half past" only means "half an hour after the fetch" once those
+phases are aligned, which was done once by forcing a recheck of every active watch at
+18:00. The delivery delay is then what the change itself costs: up to three hours
+until the next fetch plus half an hour, so up to three and a half hours (about two on
+average), where the two independent clocks it replaces could leave a change waiting
+six.
 
 ## Milestones
 

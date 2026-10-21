@@ -71,13 +71,15 @@ watcher".
 - The watermarks survive the process; a corrupt one costs a bulletin, not a crash.
 - The daily run leaves the watcher out; `--only changedetection` selects it alone.
 - Both texts are Persian, with a real U+200C.
-- The timer is every three hours, literally in the unit file.
+- The timer is every three hours at half past, literally in the unit file.
 
 ## Acceptance and what was checked
 
 - `uv run pytest` green (361 tests, 57 of them new).
 - `systemd-analyze verify` exits 0 for both units; `systemd-analyze calendar
-  '*-*-* 00/3:00:00'` normalizes to 00, 03, … 21.
+  '*-*-* 00/3:30:00'` normalizes to 00:30, 03:30, … 21:30, half an hour after
+  changedetection's fetch (its watches were aligned to the top of the hour once, by the
+  owner's ruling the same day).
 - The timer is installed and enabled in the user manager with a next elapse.
 - By hand, against the real instance on port 5005 and the real chat: one run
   recorded six watches and said nothing, and a run with one number lowered sent one
