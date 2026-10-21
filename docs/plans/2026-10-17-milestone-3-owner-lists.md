@@ -439,3 +439,16 @@ was written in.
     rule. Both do.
 - **Not changed from the review:** `previous_texts` reads by timestamp rather than file
   order. Append-only makes the two agree, and the timestamp is the one that is guaranteed.
+
+## Amendment after the milestone (2026-10-21)
+
+- **The note is expanded into a few lines, not reworded into one.** The owner's ruling:
+  a single short sentence arrived like a bullet from a list, not like a reminder worth
+  reading. The prompt now asks for one paragraph of three or four sentences — why the item
+  is worth acting on and how to do it today — and drops both "add no claim of your own" and
+  "keep it short", which together were what held the answer at one line. Fabricating a
+  number, statistic, quote or event is forbidden instead: the freedom is in explaining and
+  applying the note. Everything else in Task 4 stands, including the fallback, which stays
+  the note's own single line because a short fallback is the price of a failed call.
+  `docs/specs/2026-10-17-bale-crier-design.md` carries the reasoning; the README was swept
+  with it.

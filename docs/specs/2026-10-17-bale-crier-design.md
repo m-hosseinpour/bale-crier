@@ -9,9 +9,10 @@ One server-side bot that pushes into a single Bale chat everything the owner
 needs told. Three families of message, one channel:
 
 - **alerts** about external state — the first one is AvalAI credit running out;
-- **notes** drawn from the owner's own lists, reworded by an LLM so the same
-  item does not arrive in the same words twice. The rewording's tone may be warm
-  and motivational; nothing is appended to it (settled 2026-10-17);
+- **notes** drawn from the owner's own lists, expanded by an LLM into a few lines
+  of Persian so the same item does not arrive in the same words twice and does
+  not arrive as a one-line bullet. The expansion's tone may be warm and
+  motivational; nothing is appended to it (settled 2026-10-17, expanded 2026-10-21);
 - **news** — the day's AI trends, drawn from a web feed and written in Persian.
   It is a subsystem of its own, designed in
   `2026-10-17-news-digest-design.md` (settled 2026-10-17).
@@ -147,23 +148,39 @@ call. The model is configurable (`CRIER_OPEN_AI_MODEL`); the default is a cheap
 one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
-The prompt asks for: the note's meaning kept, with no claim of the model's own
-added; a fresh Persian wording each time, with the previous wordings of the same
-note supplied so the model can avoid them; correct U+200C in every half-space
-word; and a warm, motivational tone inside the rewording, since nothing may be
-appended to it. Output is the message text alone — no preamble, no quotes, no
-markdown scaffolding.
+The prompt asks for: the note's meaning kept, then **expanded** into one paragraph
+of three or four Persian sentences — why the note is worth acting on, and how to
+do it today, with an explanation, analogy or example free to be added, but no
+number, statistic, quote or event invented; a fresh wording each time, with the
+previous wordings of the same note supplied so the model can avoid them; correct
+U+200C in every half-space word; and a warm, motivational tone inside the
+expansion, since nothing may be appended to it. Output is the message text alone
+— no preamble, no quotes, no markdown scaffolding, no line break.
+
+**The note is expanded, not merely reworded** (owner's ruling, 2026-10-21). One
+short line read as a bullet on a list rather than as a reminder worth receiving,
+so the bulletin is now a few lines: the earlier prompt's "add no claim of your
+own" and "keep it short" both pulled the answer back down to a single sentence
+and are gone. What stays is that nothing is *fabricated* — the freedom is in
+explaining and applying the note, not in asserting facts about the world — and
+that the extra lines live inside the rewording rather than after it, so the
+"nothing appended" ruling still holds. Verified on 2026-10-21 with three real
+calls through `CRIER_OPEN_AI_MODEL`: three to four sentences, no line breaks,
+roughly 400 to 500 characters.
 
 The reworded text, not the note's own text, is what the history stores: that is
 the record of what the owner actually read.
 
 **Two rulings from the owner (2026-10-17).** There is **no separate motivational
 sentence**: the warm tone lives inside the rewording, so nothing is appended to it
-and there is no addition to bound. And **a failed call is not a lost note**: the
-bulletin then carries the note's own text followed by one short Persian line saying
-the rewording did not happen, with the call's short error code in parentheses. That
-bulletin is a real send — the history records it, and it moves the note through the
-cycle — because the history is the record of what the owner actually read.
+and there is no addition to bound — still true after the expansion of 2026-10-21,
+which grew the rewording's body rather than hanging lines off it. And **a failed
+call is not a lost note**: the bulletin then carries the note's own text followed
+by one short Persian line saying the rewording did not happen, with the call's
+short error code in parentheses. That bulletin is a real send — the history records
+it, and it moves the note through the cycle — because the history is the record of
+what the owner actually read. The fallback stays the note's own single line: a
+short fallback is the price of a failed call, not the shape of a good bulletin.
 
 ## Bale delivery
 

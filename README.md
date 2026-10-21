@@ -2,8 +2,8 @@
 
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
 alerts about external state (AvalAI credit running out, and similar), notes drawn from his own
-lists, reworded and varied by an LLM a few times a day, and a daily digest of AI news, picked and
-written in Persian.
+lists, expanded and varied by an LLM into a few Persian lines a few times a day, and a daily digest
+of AI news, picked and written in Persian.
 
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
@@ -84,11 +84,13 @@ note gets follows from the size of its list. There is deliberately no separate "
 N days" floor: with the notes ordered by last send, such a floor can only ever return the note the
 cycle had already picked.
 
-The note is rewritten before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, with the
-wordings it already arrived in supplied so the model can avoid them. The history stores the reworded
-text, because that is what the owner actually read. A failed call does not cost the note: the
-bulletin then carries the note's own text followed by one line saying the rewording did not happen,
-and the history records that.
+The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as one
+paragraph of three or four sentences saying why the note is worth acting on and how to do it today,
+with the wordings it already arrived in supplied so the model can avoid them. The model may explain,
+compare or give an example, but it may not invent a number, statistic, quote or event: the extra
+lines are application, not new facts. The history stores the expanded text, because that is what the
+owner actually read. A failed call does not cost the note: the bulletin then carries the note's own
+text followed by one line saying the expansion did not happen, and the history records that.
 
 A model call gets `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds), not the 30-second
 `CRIER_HTTP_TIMEOUT`: it is a reasoning model and takes tens of seconds to answer, so a shorter

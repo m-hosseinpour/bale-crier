@@ -1,13 +1,14 @@
 """The reword prompt, and what goes out when the model cannot be reached.
 
-The model rewrites the note in fresh Persian so the same item never arrives in
-the same words twice; the earlier wordings are handed to it so it can avoid
-them. A failed call is not a lost note (owner's ruling, 2026-10-17): the
-bulletin carries the note's own text followed by one short line saying the
-rewording did not happen, and the history then records what was actually sent.
+The model expands the note into a short Persian paragraph — what the item is
+worth and how to do it today — so the same item never arrives in the same words
+twice; the earlier wordings are handed to it so it can avoid them. A failed call
+is not a lost note (owner's ruling, 2026-10-17): the bulletin carries the note's
+own text followed by one short line saying the rewording did not happen, and the
+history then records what was actually sent.
 
-There is no separate motivational sentence: the warm tone lives inside the
-rewording itself, so nothing is appended to it.
+There is no separate motivational sentence: the expansion carries the warm tone
+inside it, so nothing is appended to it (owner's ruling, 2026-10-21).
 """
 
 from collections.abc import Sequence
@@ -20,13 +21,16 @@ from ..models import Note
 PREVIOUS_LIMIT = 3
 
 SYSTEM_INSTRUCTION = (
-    "تو یادداشت‌های شخصی صاحب ربات را به یک پیام فارسیِ تازه و کوتاه بازنویسی می‌کنی. "
-    "معنی یادداشت را نگه دار و هیچ ادعای تازه‌ای از خودت به آن اضافه نکن. "
+    "تو یادداشت‌های شخصی صاحب ربات را به یک پیام فارسیِ تازه تبدیل می‌کنی. "
+    "معنی یادداشت را نگه دار و آن را در یک پاراگراف سه تا چهار جمله‌ای بسط بده؛ "
+    "خودِ یادداشت را عیناً تکرار نکن. "
+    "بگو چرا این یادداشت به کار می‌آید و چطور می‌شود همین امروز انجامش داد؛ "
+    "توضیح، تشبیه و مثال آزاد است. "
+    "هیچ عدد، آمار، نقل‌قول یا رویدادی از خودت نساز و یادداشت را به واقعیتی بیرونی گره نزن. "
+    "لحن گرم، صمیمی و انگیزه‌بخش باشد، نه دستوری و نه نصیحت‌گرانه. "
     "واژه‌ها و جمله‌بندی را تازه بساز و از تکرار متن‌های پیشین بپرهیز. "
-    "لحن گرم و انگیزه‌بخش درون بازنویسی آزاد است، اما هیچ جمله‌ای به آن اضافه نکن. "
     "نیم‌فاصله را در واژه‌های نیم‌فاصله‌دار درست بگذار و پیشوند «نا» را چسبیده بنویس. "
-    "فقط متن پیام را بنویس؛ بدون مقدمه، بدون نقل‌قول، بدون مارک‌داون و بدون عنوان. "
-    "کوتاه باشد."
+    "فقط متن پیام را بنویس؛ بدون مقدمه، بدون گیومه، بدون مارک‌داون، بدون عنوان و بدون شکستن خط."
 )
 
 REWORD_FAILED = "بازنویسی این بار انجام نشد"
@@ -41,7 +45,7 @@ def build_messages(note: Note, previous: Sequence[str]) -> list[dict[str, str]]:
         lines.append("پیش‌تر این متن‌ها فرستاده شده‌اند؛ آن‌ها را تکرار نکن و بازنویسی تازه‌ای بساز:")
         lines.extend(f"- {text}" for text in previous)
     lines.append("")
-    lines.append("همین یادداشت را کوتاه، تازه و با لحنی گرم بازنویسی کن.")
+    lines.append("همین یادداشت را در یک پاراگراف سه تا چهار جمله‌ای، تازه، کاربردی و با لحنی گرم بسط بده.")
     return [
         {"role": "system", "content": SYSTEM_INSTRUCTION},
         {"role": "user", "content": "\n".join(lines)},

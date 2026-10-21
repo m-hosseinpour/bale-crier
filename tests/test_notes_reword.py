@@ -8,6 +8,7 @@ from bale_crier.llm import LlmRead
 from bale_crier.models import Note
 from bale_crier.notes.reword import (
     PREVIOUS_LIMIT,
+    SYSTEM_INSTRUCTION,
     build_messages,
     fallback_text,
     reword,
@@ -91,6 +92,23 @@ def test_the_messages_are_persian_and_the_instruction_keeps_its_half_spaces():
     # «می‌کنی»: a half-space word written without U+200C still reads as Persian,
     # so only an explicit check notices the character going missing.
     assert "\u200c" in messages[0]["content"]
+
+
+def test_the_instruction_asks_for_a_paragraph_of_three_or_four_sentences():
+    assert "پاراگراف" in SYSTEM_INSTRUCTION
+    assert "سه تا چهار" in SYSTEM_INSTRUCTION
+
+
+def test_the_instruction_no_longer_settles_for_one_short_sentence():
+    # The owner's ruling (2026-10-21): a footnote-length note is not worth sending;
+    # "کوتاه" is what used to pull the answer back down to one line.
+    assert "کوتاه" not in SYSTEM_INSTRUCTION
+    assert "یک جمله" not in SYSTEM_INSTRUCTION
+
+
+def test_the_instruction_forbids_inventing_facts():
+    assert "هیچ عدد" in SYSTEM_INSTRUCTION
+    assert "نساز" in SYSTEM_INSTRUCTION
 
 
 def test_a_successful_reword_returns_the_model_text_exactly():
