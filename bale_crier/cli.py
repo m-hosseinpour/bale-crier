@@ -19,8 +19,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=KNOWN_PRODUCERS,
         metavar="NAME",
         help=(
-            "run only this producer; repeatable. The credit watcher and the news "
-            "digest have timers of their own."
+            "run only this producer; repeatable. The credit and disk watchers "
+            "and the news digest have timers of their own."
         ),
     )
     try:

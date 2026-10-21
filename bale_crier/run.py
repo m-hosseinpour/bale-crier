@@ -12,16 +12,18 @@ from .news.producer import NewsProducer
 from .notes.producer import NoteProducer
 from .producers import Producer, SmokeProducer
 from .watchers.avalai_credit import CreditWatcher
+from .watchers.disk import DiskWatcher
 
 Sender = Callable[..., SendResult]
 
 SMOKE = SmokeProducer.name
 CREDIT = CreditWatcher.name
+DISK = DiskWatcher.name
 NOTE = NoteProducer.name
 NEWS = NewsProducer.name
 
 # Every name `--only` may name, whether or not this run can build it.
-KNOWN_PRODUCERS = (SMOKE, CREDIT, NOTE, NEWS)
+KNOWN_PRODUCERS = (SMOKE, CREDIT, DISK, NOTE, NEWS)
 
 
 def build_producers(
@@ -36,6 +38,8 @@ def build_producers(
     # No key means the watcher cannot read anything, so it is not registered.
     if settings.avalai_api_key:
         available[CreditWatcher.name] = CreditWatcher(settings, memory)
+    # The disk needs no key and no network, so it is always registered.
+    available[DiskWatcher.name] = DiskWatcher(settings, memory)
     # Same for the two that need the model: no key, no rewording and no digest.
     # The digest's feed is fetched at produce time, so an unreachable feed is not
     # a reason to leave it out.

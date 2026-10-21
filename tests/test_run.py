@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 
 import pytest
@@ -13,6 +14,7 @@ from bale_crier.models import SendResult
 from bale_crier.run import build_producers, run_once
 
 NOW = datetime(2026, 10, 17, 8, 30, tzinfo=timezone.utc)
+GIB = 1024**3
 
 
 @pytest.fixture(autouse=True)
@@ -80,6 +82,15 @@ FEED_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
   <source url="https://the-outlet.test/">The Outlet</source>
 </item>
 </channel></rss>"""
+
+
+def stub_disk(monkeypatch, free: int):
+    class DiskUsage:
+        pass
+
+    usage = DiskUsage()
+    usage.free = free
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: usage)
 
 
 def stub_feed(monkeypatch, body: bytes = FEED_XML):
@@ -266,6 +277,52 @@ def test_the_credit_watcher_says_nothing_when_the_balance_is_above_the_threshold
     assert calls == []
     assert report.sent == 0
     # Nothing was written, so no latch file either.
+    assert not (tmp_path / "data" / "watchers.json").exists()
+
+
+def test_the_disk_watcher_is_left_out_of_the_daily_set(tmp_path):
+    producers = build_producers(settings(), memory=memory(tmp_path))
+
+    assert [producer.name for producer in producers] == []
+
+
+def test_only_disk_selects_the_watcher_alone(tmp_path):
+    producers = build_producers(settings(), memory=memory(tmp_path), only=["disk"])
+
+    assert [producer.name for producer in producers] == ["disk"]
+
+
+def test_the_daily_run_leaves_the_disk_watcher_out(tmp_path):
+    producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
+
+    assert [producer.name for producer in producers] == ["note"]
+
+
+def test_a_disk_alert_is_recorded_in_the_history(tmp_path, monkeypatch):
+    stub_disk(monkeypatch, GIB)
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(settings(), now=NOW, send=send, only=["disk"])
+
+    assert report.sent == 1
+    assert report.producers == ["disk"]
+    assert len(calls) == 1
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert len(records) == 1
+    assert records[0].kind == "alert"
+    assert records[0].ok is True
+    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
+    assert blob["disk"]["armed"] is False
+
+
+def test_a_disk_check_with_space_to_spare_is_quiet(tmp_path, monkeypatch):
+    stub_disk(monkeypatch, 10 * GIB)
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(settings(), now=NOW, send=send, only=["disk"])
+
+    assert calls == []
+    assert report.sent == 0
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 

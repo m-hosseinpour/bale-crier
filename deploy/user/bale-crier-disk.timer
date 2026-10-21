@@ -1,0 +1,23 @@
+; bale-crier disk timer — user-level. See bale-crier-disk.service for the install notes.
+;
+; This timer, not the service, is the unit to enable:
+;   systemctl --user enable --now bale-crier-disk.timer
+;
+; Hourly, with a two-minute spread rather than the daily unit's ten: an hourly check has
+; less room to spread into. The latch — a crossing alert, then a reminder at most once a
+; day while space stays low — is what keeps a repeated look from becoming a repeated
+; message, so checking often costs nothing.
+;
+; The daily bale-crier.timer does not run the disk watcher — it owns this timer — so the
+; two timers cannot race over one latch.
+
+[Unit]
+Description=Check the free disk space hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

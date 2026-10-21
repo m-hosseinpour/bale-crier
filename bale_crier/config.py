@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     open_ai_timeout: int = Field(default=120, ge=1)
     avalai_api_key: str | None = None
     credit_threshold_irt: float = Field(default=50_000, ge=0)
+    # The whole machine is one filesystem here (`/`), so that is what the disk
+    # watcher reads unless the owner points it somewhere else.
+    disk_path: Path = Path("/")
+    # Bounded above zero: a threshold of zero could never be crossed. In GiB, the
+    # unit the bulletin shows, so the setting and the message cannot disagree.
+    disk_threshold_gib: float = Field(default=2, gt=0)
+    # Bounded above zero: a window of zero would repeat the reminder every hour.
+    disk_reminder_hours: float = Field(default=24, gt=0)
     watchers_state_path: Path = Path("data/watchers.json")
     # Bounded above zero: a window of zero would speak on every failed read.
     credit_unknown_alert_hours: float = Field(default=24, gt=0)

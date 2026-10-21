@@ -8,7 +8,8 @@ reasons behind it; `AGENTS.md` keeps the summary and points here.
 One server-side bot that pushes into a single Bale chat everything the owner
 needs told. Three families of message, one channel:
 
-- **alerts** about external state — the first one is AvalAI credit running out;
+- **alerts** about external state — AvalAI credit running out and free disk space
+  falling below a threshold;
 - **notes** drawn from the owner's own lists, expanded by an LLM into a few lines
   of Persian so the same item does not arrive in the same words twice and does
   not arrive as a one-line bullet. The expansion's tone may be warm and
@@ -31,7 +32,7 @@ not the other way round. The news digest adds a sixth, `story`, in its own desig
 | `list` | one Markdown file of notes | the owner writes it, the app only reads |
 | `note` | one item inside a list: a heading id plus body text | the owner |
 | `bulletin` | one message that actually goes to Bale, of any kind | the app |
-| `watcher` | something external under observation (AvalAI credit) | the app |
+| `watcher` | something external under observation (AvalAI credit, free disk space) | the app |
 | `schedule` | when a run happens | the OS timer |
 
 `note` and `bulletin` are two layers, not two names for one thing. The LLM takes
@@ -98,11 +99,12 @@ bale_crier/
   llm.py         the AvalAI client, reduced to the text or a short error code
   run.py         one run: gather, send, record
   cli.py         the entry point
-  watchers/      one module per watcher; avalai_credit.py is the first
+  watchers/      one module per watcher: avalai_credit.py, disk.py
   notes/         reading the lists, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/bale-crier.service + .timer          the daily bulletins
 deploy/user/bale-crier-credit.service + .timer   the hourly credit check
+deploy/user/bale-crier-disk.service + .timer     the hourly disk check
 deploy/user/bale-crier-news.service + .timer     the daily news digest
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
@@ -212,13 +214,14 @@ calendar spec. Changing the times means editing the unit and running
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
 producer has no timer of its own — with two or three runs a day that is the
-owner's "several per day". The credit watcher and the news digest each have a
-timer of their own, so they are not part of those runs.
+owner's "several per day". The credit watcher, the disk watcher and the news digest
+each have a timer of their own, so they are not part of those runs.
 
-There are therefore three timers: `bale-crier.timer` for the daily bulletins,
+There are therefore four timers: `bale-crier.timer` for the daily bulletins,
 `bale-crier-credit.timer`, hourly, which runs the same program narrowed with
-`--only credit`, and `bale-crier-news.timer`, daily, which runs it with
-`--only news` for the AI-news digest.
+`--only credit`, `bale-crier-disk.timer`, hourly, which runs it with `--only disk`,
+and `bale-crier-news.timer`, daily, which runs it with `--only news` for the AI-news
+digest.
 
 ## Configuration
 
@@ -235,6 +238,9 @@ There are therefore three timers: `bale-crier.timer` for the daily bulletins,
 | `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
 | `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` | how often an unreadable credit may speak (default 24) |
+| `CRIER_DISK_PATH` | the filesystem the disk watcher reads (default `/`) |
+| `CRIER_DISK_THRESHOLD_GIB` | the free-space threshold in GiB (default 2) |
+| `CRIER_DISK_REMINDER_HOURS` | how often a still-low disk may remind the owner (default 24) |
 | `CRIER_NEWS_FEED_URL` | the news digest's Google News RSS URL (default: the owner's query) |
 | `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
@@ -289,6 +295,38 @@ check — is what keeps a repeated look from becoming a repeated message. A
 producer that owns a timer of its own says so (`own_timer`), and the daily run
 leaves it out so the two timers cannot race over the same latch.
 
+## The disk watcher
+
+Settled with the owner on 2026-10-21. The number it watches is the free space on
+one filesystem — `/` by default (`CRIER_DISK_PATH`), which on this machine is the
+whole disk: `/proc/mounts` showed one ext4 root and no separate `/home`, so
+pointing it anywhere else would report the same numbers. The threshold is
+`CRIER_DISK_THRESHOLD_GIB`, 2 by default: the setting and the bulletin use the
+same unit, so no message shows one number and means another.
+
+**The alert is a threshold with a latch and a reminder.** Below the threshold
+while the latch is armed → one alert and the latch is set; at or above it → the
+latch re-arms. That alone would send nothing more while the disk stays low, and a
+disk nobody cleans up does not fix itself, so while space remains below the
+threshold the watcher may repeat at most once every `CRIER_DISK_REMINDER_HOURS`
+hours (24 by default). The reminder says the disk is *still* low rather than
+reusing the crossing wording, so the owner can tell a new crossing from a repeat.
+
+The owner chose the latch-plus-daily-reminder over a plain latch and over a
+message on every check (2026-10-21), and hourly checks over three fixed times:
+checking often costs nothing because the latch and the window, not the check,
+decide when a message goes.
+
+**A failed read is its own bulletin**, at most once per reminder window, and it
+says the reading failed — "I cannot tell" is never announced as "the disk is
+full". It leaves the latch exactly as it found it, so a crossing it could not see
+still speaks once the reading works again. The state lives in the watcher memory
+under the name `disk`, with `armed` and `last_alert`.
+
+It runs hourly on `bale-crier-disk.timer` with `--only disk`, for the same reason
+the credit watcher does: a producer that owns a timer keeps the daily run from
+racing over its latch.
+
 ## Milestones
 
 1. **The path end to end.** Skeleton, config, the Bale sender, the history, one
@@ -300,6 +338,9 @@ leaves it out so the two timers cannot race over the same latch.
 4. **The news digest.** The day's AI trends from a Google News feed: the fetch and
    parse, the hard filter and the seen set, the model's selection, and a timer of
    its own. Designed in `2026-10-17-news-digest-design.md`. **Built 2026-10-17.**
+5. **The disk watcher.** Free space on the machine's one filesystem under a
+   threshold, with a latch and a daily reminder, and a timer of its own.
+   **Built 2026-10-21.**
 
 Each milestone carries its own pytest tests. Milestone 1 is not "done" until a
 real message arrives in Bale.
@@ -316,8 +357,7 @@ send is verified by hand, once per milestone.
 
 ## Still open
 
-- Which other watchers the owner wants, beyond AvalAI credit. Only that one is
-  named so far.
+- Which other watchers the owner wants, beyond AvalAI credit and free disk space.
 - The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
   confirmed; the hourly credit check needs no confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project

@@ -65,6 +65,9 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     assert settings.open_ai_timeout == 120
     assert settings.avalai_api_key is None
     assert settings.credit_threshold_irt == 50_000
+    assert settings.disk_path == Path("/")
+    assert settings.disk_threshold_gib == 2
+    assert settings.disk_reminder_hours == 24
     assert settings.watchers_state_path == Path("data/watchers.json")
     assert settings.credit_unknown_alert_hours == 24
 
@@ -117,6 +120,44 @@ def test_a_zero_unknown_alert_window_is_refused(monkeypatch):
     message = str(caught.value)
     assert "CRIER_CREDIT_UNKNOWN_ALERT_HOURS" in message
     assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_the_disk_settings_take_their_values_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_DISK_PATH", "/srv")
+    monkeypatch.setenv("CRIER_DISK_THRESHOLD_GIB", "1.5")
+    monkeypatch.setenv("CRIER_DISK_REMINDER_HOURS", "6")
+
+    settings = load_settings()
+
+    assert settings.disk_path == Path("/srv")
+    assert settings.disk_threshold_gib == 1.5
+    assert settings.disk_reminder_hours == 6
+
+
+def test_a_zero_disk_threshold_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_DISK_THRESHOLD_GIB", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    message = str(caught.value)
+    assert "CRIER_DISK_THRESHOLD_GIB" in message
+    assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_a_zero_disk_reminder_window_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_DISK_REMINDER_HOURS", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    assert "CRIER_DISK_REMINDER_HOURS" in str(caught.value)
 
 
 def test_the_llm_key_is_inherited_from_the_avalai_key(monkeypatch):

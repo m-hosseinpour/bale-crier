@@ -8,11 +8,11 @@ daily digest of AI news, picked and written in Persian. Lessons come later.
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** milestones 1–4 are built — the path end to end, the AvalAI credit watcher, the owner's
-lists (reading them, choosing a note, rewording it), and the news digest (the Google News feed,
-the hard filter and the seen set, the model's selection). All three timers are enabled and running.
-The daily one sends one note per run, so until the owner puts his own content in `lists/` it says
-the directory is missing and sends none.
+**Status:** milestones 1–5 are built — the path end to end, the AvalAI credit watcher, the owner's
+lists (reading them, choosing a note, rewording it), the news digest (the Google News feed, the hard
+filter and the seen set, the model's selection), and the disk watcher (free space below a threshold,
+hourly, with a latch and a daily reminder). All four timers are enabled and scheduled. The daily
+one sends one note per run from `lists/`.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must
@@ -38,7 +38,7 @@ thing.
 | `list` | one Markdown file of notes |
 | `note` | one item in a list: a `## id` heading plus the body under it |
 | `bulletin` | one message that actually goes to Bale, of any kind |
-| `watcher` | something external under observation (AvalAI credit) |
+| `watcher` | something external under observation (AvalAI credit, free disk space) |
 | `story` | one entry in the news feed: a headline, its source and its link (not a `note`) |
 | `schedule` | when a run happens |
 
@@ -52,7 +52,7 @@ bulletin's text, and the history records both facts separately.
 | install | `uv sync` |
 | test | `uv run pytest` |
 | one run | `uv run python -m bale_crier` |
-| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-news.timer` |
+| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-news.timer` |
 
 Linger must be on — `sudo loginctl enable-linger $USER` — or the user timer is torn down with the
 last session.
