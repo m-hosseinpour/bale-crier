@@ -153,7 +153,9 @@ of three or four Persian sentences — why the note is worth acting on, and how 
 do it today, with an explanation, analogy or example free to be added, but no
 number, statistic, quote or event invented; a fresh wording each time, with the
 previous wordings of the same note supplied so the model can avoid them; correct
-U+200C in every half-space word; and a warm, motivational tone inside the
+U+200C in every half-space word, taught with worked examples (`می‌شود`,
+`تجربه‌ها`, `بیشتر`) because the bare rule still let one real bulletin go out
+with `میآید`; and a warm, motivational tone inside the
 expansion, since nothing may be appended to it. Output is the message text alone
 — no preamble, no quotes, no markdown scaffolding, no line break.
 

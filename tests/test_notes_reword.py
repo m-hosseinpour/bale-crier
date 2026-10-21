@@ -92,6 +92,10 @@ def test_the_messages_are_persian_and_the_instruction_keeps_its_half_spaces():
     # «می‌کنی»: a half-space word written without U+200C still reads as Persian,
     # so only an explicit check notices the character going missing.
     assert "\u200c" in messages[0]["content"]
+    # The model drops the character unless the instruction carries a worked
+    # example: one real bulletin went out with «میآید» before this was added.
+    assert "می‌شود" in SYSTEM_INSTRUCTION
+    assert "تجربه‌ها" in SYSTEM_INSTRUCTION
 
 
 def test_the_instruction_asks_for_a_paragraph_of_three_or_four_sentences():
