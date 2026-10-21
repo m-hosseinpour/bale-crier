@@ -70,6 +70,10 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     assert settings.disk_reminder_hours == 24
     assert settings.watchers_state_path == Path("data/watchers.json")
     assert settings.credit_unknown_alert_hours == 24
+    # The loopback port, not the public hostname: Caddy and TLS are not on the path.
+    assert settings.changedetection_url == "http://127.0.0.1:5005"
+    assert settings.changedetection_api_key is None
+    assert settings.changedetection_unknown_alert_hours == 24
 
 
 def test_dotenv_is_read(monkeypatch, tmp_path):
@@ -260,4 +264,31 @@ def test_a_model_timeout_below_one_is_refused(monkeypatch):
 
     message = str(caught.value)
     assert "CRIER_OPEN_AI_TIMEOUT" in message
+    assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_the_changedetection_settings_take_their_values_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_CHANGEDETECTION_URL", "http://127.0.0.1:6000")
+    monkeypatch.setenv("CRIER_CHANGEDETECTION_API_KEY", "cd-key")
+    monkeypatch.setenv("CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS", "6")
+
+    settings = load_settings()
+
+    assert settings.changedetection_url == "http://127.0.0.1:6000"
+    assert settings.changedetection_api_key == "cd-key"
+    assert settings.changedetection_unknown_alert_hours == 6
+
+
+def test_a_zero_changedetection_window_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    message = str(caught.value)
+    assert "CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS" in message
     assert any("\u0600" <= char <= "\u06ff" for char in message)

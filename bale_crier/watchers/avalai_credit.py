@@ -8,12 +8,13 @@ the owner's, not the bot's.
 """
 
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from ..config import Settings
 from ..credit import CreditRead, fetch_report
 from ..memory import WatcherMemory
 from ..models import Bulletin, CreditReport
+from .window import window_passed
 
 CreditReader = Callable[..., CreditRead]
 
@@ -95,14 +96,7 @@ class CreditWatcher:
             self._remember(armed=True)
 
     def _window_passed(self, last: object, now: datetime) -> bool:
-        if not last:
-            return True
-        try:
-            previous = datetime.fromisoformat(str(last))
-            return now - previous >= timedelta(hours=self._settings.credit_unknown_alert_hours)
-        except (ValueError, TypeError):
-            # A corrupt or naive timestamp costs one extra bulletin, never a crash.
-            return True
+        return window_passed(last, now=now, hours=self._settings.credit_unknown_alert_hours)
 
     def _remember(self, *, armed: bool, unknown_at: datetime | None = None) -> None:
         state = self._memory.get(self.name)

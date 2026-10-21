@@ -64,8 +64,24 @@ class Story(BaseModel):
     published: datetime | None
 
 
+class Watch(BaseModel):
+    """One page changedetection.io is watching: what it is, and when it last changed.
+
+    ``last_changed`` is the API's own epoch second, not a parsed date: it is compared
+    across runs as a plain watermark, and 0 means the watch has never changed.
+    """
+
+    uuid: str
+    title: str
+    url: str
+    last_changed: int
+
+
 class Bulletin(BaseModel):
-    """One message that goes to Bale. Kinds so far: ``smoke``, ``alert``, ``note``, ``news``."""
+    """One message that goes to Bale.
+
+    Kinds so far: ``smoke``, ``alert``, ``note``, ``news``, ``watch``.
+    """
 
     kind: str
     text: str

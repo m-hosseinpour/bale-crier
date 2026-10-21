@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     watchers_state_path: Path = Path("data/watchers.json")
     # Bounded above zero: a window of zero would speak on every failed read.
     credit_unknown_alert_hours: float = Field(default=24, gt=0)
+    # The local port, not the public hostname: the watcher talks to changedetection
+    # on the loopback, so Caddy and TLS are not on the path and a public outage
+    # cannot silence the watch.
+    changedetection_url: str = "http://127.0.0.1:5005"
+    # The API key changedetection shows in its own settings. No key means the API
+    # refuses every read, so the watcher is not registered without one.
+    changedetection_api_key: str | None = None
+    # Bounded above zero, for the same reason as the credit window.
+    changedetection_unknown_alert_hours: float = Field(default=24, gt=0)
     # The default lives in `news/feed.py`, where the feed's URL shape has its one
     # home, so the query is not written out twice.
     news_feed_url: str = DEFAULT_FEED_URL

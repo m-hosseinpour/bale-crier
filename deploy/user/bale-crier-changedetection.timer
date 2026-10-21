@@ -1,0 +1,24 @@
+; bale-crier changedetection timer — user-level. See bale-crier-changedetection.service for
+; the install notes.
+;
+; This timer, not the service, is the unit to enable:
+;   systemctl --user enable --now bale-crier-changedetection.timer
+;
+; Every three hours (00, 03, 06, … 21), because that is how often changedetection.io itself
+; looks at a page here: its global `time_between_check` is three hours. Reading faster would
+; cost a request on the loopback and tell the owner nothing sooner, since a change is only
+; visible once changedetection has fetched the page and seen it.
+;
+; The daily bale-crier.timer does not run this watcher — it owns this timer — so the two
+; timers cannot race over the watermarks.
+
+[Unit]
+Description=Check changedetection.io for changed pages every three hours
+
+[Timer]
+OnCalendar=*-*-* 00/3:00:00
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

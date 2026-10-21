@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import NamedTuple
 
 from ..models import Story
+from ..persian import digits
 
 DEFAULT_BLOCKLIST: tuple[str, ...] = (
     "funding",
@@ -76,7 +77,6 @@ FEED_FAILED = "خواندن خوراک خبری ممکن نشد؛ نمی\u200cد
 # A story with no date sorts last; the epoch stands in for "no date" and can never
 # collide with a real one.
 _UNDATED = datetime.min.replace(tzinfo=timezone.utc)
-_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
 
 
 class Chosen(NamedTuple):
@@ -184,7 +184,7 @@ def digest_text(chosen: Sequence[Chosen]) -> str:
     """The header, then each chosen story numbered with Persian digits."""
     blocks = [HEADER]
     for index, item in enumerate(chosen, start=1):
-        block = [f"{_persian_number(index)}. {item.line}"]
+        block = [f"{digits(index)}. {item.line}"]
         # The link is always shown: it is the owner's only way to reach the story,
         # so an item with no source name loses the label, never the address.
         if item.story.source:
@@ -221,6 +221,3 @@ def feed_failure_text(error: str) -> str:
     code = f" ({error})" if error else ""
     return f"{FEED_FAILED}{code}."
 
-
-def _persian_number(value: int) -> str:
-    return str(value).translate(_DIGITS)

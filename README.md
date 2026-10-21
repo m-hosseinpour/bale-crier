@@ -8,7 +8,8 @@ and a daily digest of AI news, picked and written in Persian.
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
 **Status:** milestones 1 (the path end to end), 2 (the AvalAI credit watcher), 3 (the owner's
-lists), 4 (the news digest) and 5 (the disk watcher) are built and tested.
+lists), 4 (the news digest), 5 (the disk watcher) and 6 (the changedetection watcher) are built and
+tested.
 
 The design and the reasons behind it are in `docs/specs/2026-10-17-bale-crier-design.md`; one plan
 per milestone lives in `docs/plans/`.
@@ -42,18 +43,21 @@ uv run python -m bale_crier
 
 A run asks every producer for bulletins, sends each one to Bale, and appends one line per bulletin
 to the history — whatever the outcome, so a failed send is still on record. The exit code is zero
-when nothing failed.
+when nothing failed. The watcher memory is written only when every send landed, so a failed send
+costs a repeat next run rather than the change it was carrying.
 
 `CRIER_SMOKE=1` replaces the producers with the smoke producer, which sends one fixed test bulletin.
 It is how the path is proved after a deploy, and it is never registered by default.
 
-`--only NAME` narrows a run to one producer, and may be repeated. The credit and disk watchers and
-the news digest each own a timer of their own, so the ordinary run leaves all three out; the hourly
-timers run the watchers alone with `--only credit` and `--only disk`, and the daily news timer runs
-the digest alone with `--only news`. The credit watcher is not registered at all unless
-`CRIER_AVALAI_API_KEY` is set — a run under `--only credit` without it says so in Persian and sends
-nothing. The disk watcher needs no key and no network, so it is always registered. The digest, like
-the note producer, needs an LLM key; without one `--only news` says so in Persian and sends nothing.
+`--only NAME` narrows a run to one producer, and may be repeated. The credit, disk and
+changedetection watchers and the news digest each own a timer of their own, so the ordinary run
+leaves all four out; the watchers' timers run them alone with `--only credit`, `--only disk` and
+`--only changedetection`, and the daily news timer runs the digest alone with `--only news`. The
+credit watcher is not registered at all unless `CRIER_AVALAI_API_KEY` is set — a run under
+`--only credit` without it says so in Persian and sends nothing. The disk watcher needs no key and
+no network, so it is always registered. The changedetection watcher needs its API key, and without
+one it is not registered at all. The digest, like the note producer, needs an LLM key; without one
+`--only news` says so in Persian and sends nothing.
 
 The note producer is the daily run's own work, and is registered only when an LLM key exists. With
 no key, or with no `lists/` directory, the run says so in Persian on stderr rather than passing the
@@ -142,6 +146,45 @@ deliberately separate from the history, which records what the owner read.
 It runs hourly, on its own timer, `bale-crier-disk.timer`, with `--only disk`. Checking often costs
 nothing: the latch and the reminder window, not the check, decide when a message goes.
 
+## The changedetection watcher
+
+`changedetection.io` on this machine watches a handful of pages and knows when one of them changes.
+This watcher reads that knowledge out of its API — on the loopback, `CRIER_CHANGEDETECTION_URL`
+(default `http://127.0.0.1:5005`), with `CRIER_CHANGEDETECTION_API_KEY` from its own settings — and
+turns it into one Persian message naming the pages that changed and the lines that changed in them.
+
+It asks rather than being told, because changedetection's own notifications go through Apprise and
+the Apprise it ships with has no Bale plugin. The alternative — a webhook into a receiving server of
+our own — would give the bot an inbound door it deliberately does not have.
+
+The state is one number per watch: the `last_changed` this bot has already reported. A watch whose
+number has moved past that speaks once; the run then records the new numbers of the pages its
+message carried, so the next run is quiet about those. The very first run records every number and says nothing — everything under watch has changed
+at some point in the past, and none of it is news — and a watch added later is recorded the same way,
+silently. A number that moves *backwards* (history cleared in changedetection) is a reset, not a
+change, so it is recorded without a word.
+
+One bulletin per run, not one per page: the pages are checked together, and a run rarely finds more
+than one. Each page is a block — its address, how long ago the change was seen, then the changed
+lines in patch style: `+` for what appeared, `-` for what went away, and both when a line was
+rewritten. A block carries at most ten changed lines — up to five from each side, borrowing the rest
+when one side is short — plus a line counting the remainder, so a rewritten page does not show only
+what vanished. The whole text stays inside one Bale
+message; a page whose block does not fit is left for the next run, and the message's last line says
+so. A page whose diff cannot be read is still reported, with one line saying the text could not be
+read, because `last_changed` already proved the change; a page with a single snapshot has nothing to
+diff and says only that.
+
+A failed read of the API is a bulletin of its own, at most once every
+`CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS` hours (default 24), and it says the reading failed —
+**"I cannot tell" is never announced as "nothing changed"**. It leaves the numbers exactly as it
+found them, so a change it could not see still speaks on the next run that can — except on the very
+first run, where there were no numbers yet and the next successful run takes the silent baseline.
+
+It runs every three hours on `bale-crier-changedetection.timer`, with `--only changedetection` — the
+same interval changedetection itself checks a page with here, because a change is only visible once
+changedetection has fetched the page and seen it.
+
 ## The news digest
 
 The digest is one message a day carrying a handful of AI-news stories. It reads a Google News RSS
@@ -181,16 +224,18 @@ leaves it out and the two cannot race over one seen set. `--only news` runs it a
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note, Story
+  models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note, Story, Watch
   bale.py        the sender — the only place that talks to Bale
   history.py     append-only JSONL with a size cap
   memory.py      a watcher's own state, across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
+  persian.py     numbers written with Persian digits, for the texts that count
+  changedetection.py  the changedetection.io API: the watch list and one watch's diff
   llm.py         the AvalAI chat call, reduced to the text or a short error
   producers.py   the Producer protocol and the smoke producer
   run.py         one run: gather, send, record
   cli.py         the entry point
-  watchers/      one module per watcher: avalai_credit.py and disk.py
+  watchers/      one module per watcher: avalai_credit.py, disk.py, changedetection.py
   notes/         the owner's lists: reading them, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/     the systemd units
@@ -202,21 +247,23 @@ tests/           pytest
 
 ## Deploy
 
-Four `Type=oneshot` user services, each with a timer of its own. Install them into the user manager:
+Five `Type=oneshot` user services, each with a timer of its own. Install them into the user manager:
 
 ```sh
 cp deploy/user/* ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-news.timer
+systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
 ```
 
-There are four timers. `bale-crier.timer` runs the daily bulletins (everything but the credit
-watcher, the disk watcher and the news digest); `bale-crier-credit.timer` runs the credit check
-hourly with `--only credit`, `bale-crier-disk.timer` runs the disk check hourly with `--only disk`,
-and `bale-crier-news.timer` runs the digest daily with `--only news`. Each owns a timer of its own
-so it cannot race over the daily run's latch or seen set. Enabling the credit watcher, the disk
-watcher and the digest is not optional — without their timers nothing ever checks the credit or the
-disk, and nothing sends the digest.
+There are five timers. `bale-crier.timer` runs the daily bulletins (everything but the credit
+watcher, the disk watcher, the changedetection watcher and the news digest); `bale-crier-credit.timer`
+runs the credit check hourly with `--only credit`, `bale-crier-disk.timer` runs the disk check hourly
+with `--only disk`, `bale-crier-changedetection.timer` runs the changedetection check every three
+hours with `--only changedetection`, and `bale-crier-news.timer` runs the digest daily with
+`--only news`. Each owns a timer of its own so it cannot race over the daily run's latch, watermarks
+or seen set. Enabling the credit watcher, the disk watcher, the changedetection watcher and the
+digest is not optional — without their timers nothing ever checks the credit, the disk or
+changedetection, and nothing sends the digest.
 
 Enable the **timers**, not the services — each service is a oneshot with no `[Install]` section, so
 enabling it alone does nothing. Run `sudo loginctl enable-linger $USER` once, or the user manager
@@ -232,19 +279,20 @@ is not killed while it waits out a feed fetch, a model call and a send in turn. 
 `CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
 The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
-randomized delay in `bale-crier.timer`; `hourly` with a two-minute spread in
-`bale-crier-credit.timer` and in `bale-crier-disk.timer`; and 09:00 with a ten-minute delay in
-`bale-crier-news.timer`. systemd expands no environment variable in a unit file, so a schedule
-setting would silently never fire. To change a time, edit the unit, copy it again and run
-`systemctl --user daemon-reload`.
+randomized delay in `bale-crier.timer`; `hourly` with a two-minute spread in `bale-crier-credit.timer`
+and in `bale-crier-disk.timer`; `*-*-* 00/3:00:00` with a two-minute spread in
+`bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in `bale-crier-news.timer`.
+systemd expands no environment variable in a unit file, so a schedule setting would silently never
+fire. To change a time, edit the unit, copy it again and run `systemctl --user daemon-reload`.
 
 Check them:
 
 ```sh
-systemctl --user list-timers bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-news.timer
+systemctl --user list-timers bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
 journalctl --user -u bale-crier.service
 journalctl --user -u bale-crier-credit.service
 journalctl --user -u bale-crier-disk.service
+journalctl --user -u bale-crier-changedetection.service
 journalctl --user -u bale-crier-news.service
 ```
 
@@ -268,6 +316,15 @@ arrive, then run again and watch the latch hold — and the 24-hour reminder win
 
 ```sh
 uv run python -m bale_crier --only disk
+```
+
+And prove the changedetection watcher by hand. The first run records every watch's `last_changed` and
+sends nothing; a run after a page has changed sends one message naming it and the lines that changed.
+To force one without waiting for a page to change, lower one number in `data/watchers.json` under
+`changedetection.seen` and run again:
+
+```sh
+uv run python -m bale_crier --only changedetection
 ```
 
 And prove the digest by hand. One run sends one digest and records the stories it carried in the

@@ -11,13 +11,14 @@ full" — and it leaves the latch exactly as it found it.
 
 import shutil
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from math import floor
 from pathlib import Path
 
 from ..config import Settings
 from ..memory import WatcherMemory
 from ..models import Bulletin
+from .window import window_passed
 
 DiskReader = Callable[[Path], int]
 
@@ -107,14 +108,7 @@ class DiskWatcher:
             self._remember(armed=True)
 
     def _window_passed(self, last: object, now: datetime) -> bool:
-        if not last:
-            return True
-        try:
-            previous = datetime.fromisoformat(str(last))
-            return now - previous >= timedelta(hours=self._settings.disk_reminder_hours)
-        except (ValueError, TypeError):
-            # A corrupt or naive timestamp costs one extra bulletin, never a crash.
-            return True
+        return window_passed(last, now=now, hours=self._settings.disk_reminder_hours)
 
     def _remember(self, *, armed: bool, at: datetime | None = None) -> None:
         state = self._memory.get(self.name)

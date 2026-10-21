@@ -544,3 +544,162 @@ def test_only_news_does_not_warn_about_notes_it_never_asked_for(
     err = capsys.readouterr().err
     assert "lists" not in err
     assert "CRIER_OPEN_AI_API_KEY" not in err
+
+
+CHANGEDETECTION_UUID = "7950b31a-25eb-459b-b336-9f4f2affc2dc"
+# One added line, in the shape the API returns it.
+CHANGEDETECTION_DIFF = '@added_PLACEMARKER_OPEN    "new-model"@added_PLACEMARKER_CLOSED'
+
+
+def stub_changedetection(monkeypatch, *, last_changed: int = 100):
+    """The real client runs; only its HTTP call is faked, as `stub_credit` does."""
+
+    class ApiResponse:
+        def __init__(self, *, body=None, text="", status_code=200):
+            self._body = body
+            self.text = text
+            self.status_code = status_code
+
+        def json(self):
+            return self._body
+
+    def get(url, **kwargs):
+        if "/difference/" in url:
+            return ApiResponse(text=CHANGEDETECTION_DIFF)
+        return ApiResponse(
+            body={
+                CHANGEDETECTION_UUID: {
+                    "title": "",
+                    "url": "https://example.test/models",
+                    "last_changed": last_changed,
+                }
+            }
+        )
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def seed_changedetection(tmp_path, last_changed: int) -> None:
+    path = tmp_path / "data" / "watchers.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "changedetection": {
+                    "seen": {CHANGEDETECTION_UUID: last_changed},
+                    "last_unknown_alert": None,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_only_changedetection_selects_the_watcher_alone(tmp_path):
+    producers = build_producers(
+        settings(changedetection_api_key="cd-key"), memory=memory(tmp_path), only=["changedetection"]
+    )
+
+    assert [producer.name for producer in producers] == ["changedetection"]
+
+
+def test_no_key_means_no_changedetection_watcher_even_under_only(tmp_path):
+    producers = build_producers(settings(), memory=memory(tmp_path), only=["changedetection"])
+
+    assert producers == []
+
+
+def test_the_daily_run_leaves_the_changedetection_watcher_out(tmp_path):
+    """It owns a timer of its own, so the daily run must not touch its watermarks."""
+    producers = build_producers(
+        settings(changedetection_api_key="cd-key", open_ai_api_key="llm-key"), memory=memory(tmp_path)
+    )
+
+    assert [producer.name for producer in producers] == ["note"]
+
+
+def test_a_changed_page_is_one_watch_bulletin_in_the_history(tmp_path, monkeypatch):
+    seed_changedetection(tmp_path, 50)
+    stub_changedetection(monkeypatch, last_changed=100)
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=send,
+        only=["changedetection"],
+    )
+
+    assert report.sent == 1
+    assert report.producers == ["changedetection"]
+    assert "https://example.test/models" in calls[0]["text"]
+    assert '+ "new-model"' in calls[0]["text"]
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert len(records) == 1
+    assert records[0].kind == "watch"
+    assert records[0].ok is True
+    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
+    assert blob["changedetection"]["seen"] == {CHANGEDETECTION_UUID: 100}
+
+
+def test_a_changedetection_check_with_nothing_new_is_quiet(tmp_path, monkeypatch):
+    seed_changedetection(tmp_path, 100)
+    stub_changedetection(monkeypatch, last_changed=100)
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=send,
+        only=["changedetection"],
+    )
+
+    assert calls == []
+    assert report.sent == 0
+
+
+def test_only_changedetection_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+
+    code = main(["--only", "changedetection"])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "CRIER_CHANGEDETECTION_API_KEY" in captured.err
+    assert any("\u0600" <= char <= "\u06ff" for char in captured.err)
+    # «نمی‌شود»: a half-space word written without U+200C still reads as Persian.
+    assert "\u200c" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_a_failed_send_leaves_the_change_for_the_next_run(tmp_path, monkeypatch):
+    """The watermark is only recorded when the message landed, so a Bale failure costs
+    a repeat rather than the change itself."""
+    seed_changedetection(tmp_path, 50)
+    stub_changedetection(monkeypatch, last_changed=100)
+    failing, _ = stub_sender(SendResult(ok=False, error="chat not found"))
+
+    report = run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=failing,
+        only=["changedetection"],
+    )
+
+    assert report.failed == 1
+    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
+    assert blob["changedetection"]["seen"] == {CHANGEDETECTION_UUID: 50}
+
+    send, calls = stub_sender(SendResult(ok=True))
+    retry = run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=send,
+        only=["changedetection"],
+    )
+
+    assert retry.sent == 1
+    assert len(calls) == 1
+    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
+    assert blob["changedetection"]["seen"] == {CHANGEDETECTION_UUID: 100}

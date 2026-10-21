@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 
 from .config import ConfigError, load_settings
-from .run import CREDIT, KNOWN_PRODUCERS, NEWS, NOTE, run_once
+from .run import CHANGEDETECTION, CREDIT, KNOWN_PRODUCERS, NEWS, NOTE, run_once
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,8 +19,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=KNOWN_PRODUCERS,
         metavar="NAME",
         help=(
-            "run only this producer; repeatable. The credit and disk watchers "
-            "and the news digest have timers of their own."
+            "run only this producer; repeatable. The credit, disk and "
+            "changedetection watchers and the news digest have timers of their own."
         ),
     )
     try:
@@ -59,6 +59,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "خبرنامه بدون کلید مدل ساخته نمی\u200cشود: "
             "CRIER_OPEN_AI_API_KEY (یا CRIER_AVALAI_API_KEY) تنظیم نشده است.",
+            file=sys.stderr,
+        )
+    if args.only and CHANGEDETECTION in args.only and not settings.changedetection_api_key:
+        print(
+            "ناظر تغییر‌ها بدون کلید اجرا نمی\u200cشود: "
+            "CRIER_CHANGEDETECTION_API_KEY تنظیم نشده است.",
             file=sys.stderr,
         )
 

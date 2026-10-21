@@ -21,18 +21,22 @@ needs told. Three families of message, one channel:
 The owner's آموزش comes later. Nothing here is channel-agnostic: Bale is the
 only channel, and alerts are Bale messages too.
 
-## Vocabulary (settled 2026-10-17)
+## Vocabulary (settled 2026-10-17, extended since)
 
-Five words, three layers. The names came out of what the sources actually hold,
-not the other way round. The news digest adds a sixth, `story`, in its own design
-(`2026-10-17-news-digest-design.md`).
+Seven words today, in three layers. Five came first: the names came out of what the
+sources actually hold, not the other way round. The news digest added `story` in its
+own design (`2026-10-17-news-digest-design.md`), and the changedetection watcher
+added `watch` for one page on the other side of its API. `AGENTS.md` carries the same
+table, one line each.
 
 | word | what it is | who owns it |
 | --- | --- | --- |
 | `list` | one Markdown file of notes | the owner writes it, the app only reads |
 | `note` | one item inside a list: a heading id plus body text | the owner |
 | `bulletin` | one message that actually goes to Bale, of any kind | the app |
-| `watcher` | something external under observation (AvalAI credit, free disk space) | the app |
+| `watcher` | something external under observation (AvalAI credit, free disk space, the pages changedetection.io watches) | the app |
+| `watch` | one page under observation in changedetection.io, with its own `last_changed` | changedetection.io, read by the app |
+| `story` | one entry in the news feed: a headline, its source and its link | the feed, read by the app |
 | `schedule` | when a run happens | the OS timer |
 
 `note` and `bulletin` are two layers, not two names for one thing. The LLM takes
@@ -90,21 +94,24 @@ and registering it — not editing the run loop, the sender, or the history.
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Note, Story, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
+  models.py      Note, Story, Watch, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
   producers.py   the Producer protocol; a registry joins when a second producer does
   bale.py        the sender (sendMessage today; media later)
   history.py     append-only JSONL with a size cap
   memory.py      where a watcher keeps its own state across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
+  persian.py     numbers written with Persian digits, for the texts that count
   llm.py         the AvalAI client, reduced to the text or a short error code
   run.py         one run: gather, send, record
   cli.py         the entry point
-  watchers/      one module per watcher: avalai_credit.py, disk.py
+  changedetection.py  the changedetection.io API: the watch list and one watch's diff
+  watchers/      one module per watcher: avalai_credit.py, disk.py, changedetection.py
   notes/         reading the lists, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/bale-crier.service + .timer          the daily bulletins
 deploy/user/bale-crier-credit.service + .timer   the hourly credit check
 deploy/user/bale-crier-disk.service + .timer     the hourly disk check
+deploy/user/bale-crier-changedetection.service + .timer  the three-hourly changedetection check
 deploy/user/bale-crier-news.service + .timer     the daily news digest
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
@@ -118,8 +125,10 @@ tests/
 - `Note` — `list_name`, `id`, `text`.
 - `Story` — `title`, `source`, `link`, `guid`, `published` (timezone-aware UTC when the
   feed gave a date, `None` when it did not).
-- `Bulletin` — `kind` (`smoke` | `alert` | `note` | `news`), `text`, `note_id` optional,
-  `list_name` optional (which list a note came from).
+- `Watch` — `uuid`, `title`, `url`, `last_changed` (epoch seconds; 0 when the watch
+  has never changed).
+- `Bulletin` — `kind` (`smoke` | `alert` | `note` | `news` | `watch`), `text`,
+  `note_id` optional, `list_name` optional (which list a note came from).
 - history line — `{ts, kind, list_name, note_id, text, ok}`.
 - watcher memory — one JSON object per producer name, in
   `CRIER_WATCHERS_STATE_PATH`. Its contents are the producer's own business; the
@@ -214,14 +223,16 @@ calendar spec. Changing the times means editing the unit and running
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
 producer has no timer of its own — with two or three runs a day that is the
-owner's "several per day". The credit watcher, the disk watcher and the news digest
-each have a timer of their own, so they are not part of those runs.
+owner's "several per day". The credit watcher, the disk watcher, the
+changedetection watcher and the news digest each have a timer of their own, so
+they are not part of those runs.
 
-There are therefore four timers: `bale-crier.timer` for the daily bulletins,
+There are therefore five timers: `bale-crier.timer` for the daily bulletins,
 `bale-crier-credit.timer`, hourly, which runs the same program narrowed with
 `--only credit`, `bale-crier-disk.timer`, hourly, which runs it with `--only disk`,
-and `bale-crier-news.timer`, daily, which runs it with `--only news` for the AI-news
-digest.
+`bale-crier-changedetection.timer`, every three hours, which runs it with
+`--only changedetection`, and `bale-crier-news.timer`, daily, which runs it with
+`--only news` for the AI-news digest.
 
 ## Configuration
 
@@ -244,6 +255,9 @@ digest.
 | `CRIER_NEWS_FEED_URL` | the news digest's Google News RSS URL (default: the owner's query) |
 | `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
+| `CRIER_CHANGEDETECTION_URL` | where changedetection.io listens (default `http://127.0.0.1:5005`, the loopback) |
+| `CRIER_CHANGEDETECTION_API_KEY` | the key from changedetection's own settings; without it the watcher is not registered |
+| `CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS` | how often an unreadable changedetection may speak (default 24) |
 
 Settings go through `pydantic-settings`, which gives validation and the
 `CRIER_` prefix in one place.
@@ -327,6 +341,75 @@ It runs hourly on `bale-crier-disk.timer` with `--only disk`, for the same reaso
 the credit watcher does: a producer that owns a timer keeps the daily run from
 racing over its latch.
 
+## The changedetection watcher
+
+Settled with the owner on 2026-10-21. The thing under observation is not a number
+this project reads itself: `changedetection.io` on the same machine watches a
+handful of pages (model-list endpoints, a news site) and already knows when one of
+them changes. The bot's job is only to turn that knowledge into a Bale message.
+
+**It asks; it is not told.** changedetection can push a notification through
+Apprise, and the Apprise it ships with has no Bale plugin — its telegram module is
+hardcoded to `api.telegram.org` — so the push path would need a receiving server of
+our own. That would give the bot an inbound door, which the design refuses ("the
+bot sends and never receives"). The watcher therefore polls the local API on the
+loopback (`CRIER_CHANGEDETECTION_URL`, `http://127.0.0.1:5005`) with
+`x-api-key`, so Caddy and the public hostname are not on the path: a public outage
+cannot silence the watch, and there is no second way into Bale.
+
+**The state is one watermark per watch.** `GET /api/v1/watch` returns, per watch,
+`last_changed` — the epoch second of the last change changedetection detected. The
+watcher keeps the number it has already reported, under the name
+`changedetection` in `CRIER_WATCHERS_STATE_PATH`, and speaks when a watch's number
+moves past it. Three cases are deliberately silent, each because the alternative
+would be a message about something that is not news:
+
+- **the first run ever**: everything under watch changed at some point in the
+  past, so every number is recorded and nothing is said;
+- **a watch seen for the first time later**: a page added yesterday may carry a
+  change from before it was added;
+- **a number that moves backwards**: clearing a watch's history resets
+  `last_changed`, which is a reset and not a change.
+
+**One bulletin per run, not one per page** (owner's choice, 2026-10-21). The pages
+are checked together and a run rarely finds more than one, so the message lists
+whatever changed — oldest first, so no page can wait behind one that changed
+after it, each with its address, how long ago the change was seen, and the
+changed lines from
+`GET /api/v1/watch/<uuid>/difference/previous/latest?changesOnly=true&no_markup=true`,
+which is the API's own per-snapshot diff. The API's segment placemarkers become
+patch-style `+` and `-` lines, and the ten lines a page are shared between the two
+directions — up to five each, one side lending the rest when it is short: changedetection renders a rewritten page as all of its old lines and
+then all of its new ones, so a plain "first ten" cut would show ten things vanishing
+and never their replacements. The whole text stays below Bale's 4096-character
+limit; a page whose block does not fit keeps its watermark, so the next run carries
+it, which is what the message's last line promises. A page whose diff cannot be read
+is still reported, with one line saying the text could not be read: `last_changed`
+already proved the change, so losing the detail must not lose the message. The diff
+is the API's snapshot diff, so a watch's own `ignore_text` rules are not applied to
+it.
+
+**The watermark only advances when the message landed.** The run saves no watcher
+memory after a failed send (`run.py`), so a Bale outage repeats a change on the next
+run instead of losing it — the same safe direction the memory store already took for
+a crash between produce and send.
+
+**A failed read is its own bulletin**, at most once every
+`CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS` hours (24 by default), and it says the
+reading failed — "I cannot tell" is never announced as "nothing changed". The
+watermarks are left exactly as they were found, so a change the failure could not
+see still speaks on the next run that can; a first read that fails has no numbers to
+leave, and the first-run rule then takes the baseline silently.
+
+**It runs every three hours**, on `bale-crier-changedetection.timer` with
+`--only changedetection`. Three hours is the owner's choice (2026-10-21), and it is
+also the interval changedetection itself checks a page with here (its global
+`time_between_check`): a change is only visible once changedetection has fetched
+the page and seen it, so reading the API more often would cost a request and tell
+the owner nothing sooner. The cost is a delivery delay of up to six hours after the
+change itself (three on average, since the two three-hour clocks are independent),
+which the owner accepted over asking changedetection to fetch every page every hour.
+
 ## Milestones
 
 1. **The path end to end.** Skeleton, config, the Bale sender, the history, one
@@ -341,6 +424,9 @@ racing over its latch.
 5. **The disk watcher.** Free space on the machine's one filesystem under a
    threshold, with a latch and a daily reminder, and a timer of its own.
    **Built 2026-10-21.**
+6. **The changedetection watcher.** One bulletin naming the pages
+   `changedetection.io` saw change, read from its local API every three hours with
+   a watermark per watch. **Built 2026-10-21.**
 
 Each milestone carries its own pytest tests. Milestone 1 is not "done" until a
 real message arrives in Bale.
@@ -357,7 +443,8 @@ send is verified by hand, once per milestone.
 
 ## Still open
 
-- Which other watchers the owner wants, beyond AvalAI credit and free disk space.
+- Which other watchers the owner wants, beyond AvalAI credit, free disk space and
+  the pages changedetection.io watches.
 - The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
   confirmed; the hourly credit check needs no confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project

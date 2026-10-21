@@ -1,0 +1,23 @@
+; bale-crier changedetection watcher — user-level systemd unit (one check every three hours).
+;
+; Install to ~/.config/systemd/user/, then:
+;   systemctl --user daemon-reload && systemctl --user enable --now bale-crier-changedetection.timer
+;
+; The timer is what schedules this oneshot; this unit is deliberately static and has no
+; [Install] section, so enabling the service alone does nothing.
+;
+; --only changedetection is what keeps the timers from racing over the watermarks: the
+; daily unit runs everything else, and this one runs the watcher alone.
+;
+; WorkingDirectory matters: the default watchers_state_path and history_path are relative,
+; and a run started elsewhere would keep its watermarks in the wrong place. It is also where
+; the .env holding the token, the chat id and the changedetection API key is read from.
+
+[Unit]
+Description=check changedetection.io for changed pages once
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/mahdi/workspace/bale-crier/
+ExecStart=/home/mahdi/workspace/bale-crier/.venv/bin/python -m bale_crier --only changedetection
+Environment=PYTHONUNBUFFERED=1

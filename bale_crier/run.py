@@ -12,6 +12,7 @@ from .news.producer import NewsProducer
 from .notes.producer import NoteProducer
 from .producers import Producer, SmokeProducer
 from .watchers.avalai_credit import CreditWatcher
+from .watchers.changedetection import ChangedetectionWatcher
 from .watchers.disk import DiskWatcher
 
 Sender = Callable[..., SendResult]
@@ -19,11 +20,12 @@ Sender = Callable[..., SendResult]
 SMOKE = SmokeProducer.name
 CREDIT = CreditWatcher.name
 DISK = DiskWatcher.name
+CHANGEDETECTION = ChangedetectionWatcher.name
 NOTE = NoteProducer.name
 NEWS = NewsProducer.name
 
 # Every name `--only` may name, whether or not this run can build it.
-KNOWN_PRODUCERS = (SMOKE, CREDIT, DISK, NOTE, NEWS)
+KNOWN_PRODUCERS = (SMOKE, CREDIT, DISK, CHANGEDETECTION, NOTE, NEWS)
 
 
 def build_producers(
@@ -40,6 +42,10 @@ def build_producers(
         available[CreditWatcher.name] = CreditWatcher(settings, memory)
     # The disk needs no key and no network, so it is always registered.
     available[DiskWatcher.name] = DiskWatcher(settings, memory)
+    # Without the API key changedetection refuses every read, so the watcher is not
+    # registered at all rather than registering one that can only fail.
+    if settings.changedetection_api_key:
+        available[ChangedetectionWatcher.name] = ChangedetectionWatcher(settings, memory)
     # Same for the two that need the model: no key, no rewording and no digest.
     # The digest's feed is fetched at produce time, so an unreachable feed is not
     # a reason to leave it out.
@@ -100,8 +106,10 @@ def run_once(
             max_lines=settings.history_max_lines,
         )
 
-    # Saved after the sends, so a crash between the two re-alerts next run — the
-    # safe direction.
-    memory.save()
+    # Saved only when every send landed: a failed send must cost a repeat next run,
+    # never the change it was carrying. A crash between produce and send already left
+    # the memory unsaved for the same reason.
+    if not failed:
+        memory.save()
 
     return RunReport(sent=sent, failed=failed, producers=[producer.name for producer in producers])
