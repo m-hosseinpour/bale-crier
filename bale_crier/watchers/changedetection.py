@@ -9,6 +9,9 @@ One bulletin per run, not one per page: the pages are checked together and a run
 rarely finds more than one, so a single message listing them is what the owner
 reads in the morning rather than five buzzes in a row.
 
+It also writes one thing back: once the message has landed, the pages it named are
+marked viewed in changedetection, so their unread dot in the UI goes out (see `sent`).
+
 A read that fails is a bulletin of its own, at most once every
 ``CRIER_CHANGEDETECTION_UNKNOWN_ALERT_HOURS``: "I cannot tell" is never announced
 as "nothing changed", and it leaves the watermarks exactly as it found them, so a
@@ -29,6 +32,7 @@ from ..changedetection import (
     epoch,
     fetch_diff,
     fetch_watches,
+    mark_viewed,
 )
 from ..config import Settings
 from ..memory import WatcherMemory
@@ -38,6 +42,7 @@ from .window import window_passed
 
 WatchesReader = Callable[..., WatchesRead]
 DiffReader = Callable[..., DiffRead]
+Marker = Callable[..., str]
 
 # Enough changed lines to see what happened, few enough that one runaway page (a
 # whole feed, a JSON document) cannot bury the others.
@@ -159,14 +164,20 @@ class ChangedetectionWatcher:
         memory: WatcherMemory,
         read: WatchesReader = fetch_watches,
         read_diff: DiffReader = fetch_diff,
+        mark: Marker = mark_viewed,
     ) -> None:
         self._settings = settings
         self._memory = memory
         self._read = read
         self._read_diff = read_diff
+        self._mark = mark
+        # What this run told the owner about, for `sent` to clear the dots of.
+        self._reported: list[Watch] = []
 
     def produce(self, now: datetime) -> list[Bulletin]:
         now = now.astimezone(timezone.utc)
+        # A run that says nothing — a failure, a baseline, a quiet tick — marks nothing.
+        self._reported = []
         read = self._read(
             base_url=self._settings.changedetection_url,
             key=self._settings.changedetection_api_key or "",
@@ -207,7 +218,30 @@ class ChangedetectionWatcher:
             if index not in carried:
                 watermarks[watch.uuid] = epoch(seen[watch.uuid])
         self._remember(seen=watermarks)
+        self._reported = [changed[index] for index in carried]
         return [Bulletin(kind="watch", text=text)]
+
+    def sent(self, *, ok: bool, now: datetime) -> None:
+        """Clear the unread dot of the pages this run told the owner about.
+
+        Only after a send that landed: a failed send repeats on the next run, and the dot
+        is the UI's record of "Bale has not told me yet", so it must not go out early.
+        A mark that fails is not retried and not mentioned in the message — the dot
+        staying is the safe direction, and the message itself has already gone.
+        """
+        reported, self._reported = self._reported, []
+        if not ok:
+            return
+        for watch in reported:
+            self._mark(
+                base_url=self._settings.changedetection_url,
+                key=self._settings.changedetection_api_key or "",
+                uuid=watch.uuid,
+                # A clock behind the snapshot's would leave the dot on: "now" is what
+                # marks it viewed, but never less than the change it is marking.
+                at=max(int(now.timestamp()), watch.last_changed),
+                timeout=self._settings.http_timeout,
+            )
 
     def _diff_block(self, watch: Watch, now: datetime) -> str:
         diff = self._read_diff(

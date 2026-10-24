@@ -76,35 +76,45 @@ def run_once(
 ) -> RunReport:
     memory = WatcherMemory.load(settings.watchers_state_path)
     producers = build_producers(settings, memory=memory, only=only)
-    bulletins = [bulletin for producer in producers for bulletin in producer.produce(now)]
 
     sent = 0
     failed = 0
-    for bulletin in bulletins:
-        result = send(
-            bulletin.text,
-            token=settings.bale_bot_token,
-            chat_id=settings.bale_chat_id,
-            timeout=settings.http_timeout,
-        )
-        if result.ok:
-            sent += 1
-        else:
-            failed += 1
-        # Written for a failed send too: a silent failure is the one outcome the
-        # owner cannot debug afterwards.
-        append(
-            HistoryRecord(
-                ts=now,
-                kind=bulletin.kind,
-                text=bulletin.text,
-                list_name=bulletin.list_name,
-                note_id=bulletin.note_id,
-                ok=result.ok,
-            ),
-            path=settings.history_path,
-            max_lines=settings.history_max_lines,
-        )
+    for producer in producers:
+        # Per producer, because one that also writes back — today only the
+        # changedetection watcher, which clears the pages' unread dots — must learn
+        # whether *its* bulletin landed, not how the run as a whole went.
+        landed = True
+        for bulletin in producer.produce(now):
+            result = send(
+                bulletin.text,
+                token=settings.bale_bot_token,
+                chat_id=settings.bale_chat_id,
+                timeout=settings.http_timeout,
+            )
+            if result.ok:
+                sent += 1
+            else:
+                failed += 1
+            landed = landed and result.ok
+            # Written for a failed send too: a silent failure is the one outcome the
+            # owner cannot debug afterwards.
+            append(
+                HistoryRecord(
+                    ts=now,
+                    kind=bulletin.kind,
+                    text=bulletin.text,
+                    list_name=bulletin.list_name,
+                    note_id=bulletin.note_id,
+                    ok=result.ok,
+                ),
+                path=settings.history_path,
+                max_lines=settings.history_max_lines,
+            )
+        # A producer that must know how its bulletin went says so by having this
+        # method; the ones that do not are told nothing and need nothing.
+        notify = getattr(producer, "sent", None)
+        if notify is not None:
+            notify(ok=landed, now=now)
 
     # Saved only when every send landed: a failed send must cost a repeat next run,
     # never the change it was carrying. A crash between produce and send already left

@@ -94,5 +94,8 @@ tests/          pytest
 - **History is append-only.** No read-modify-write of the whole file, so a crash cannot lose what was
   already recorded.
 - **The bot sends and never receives.** No webhook, no long polling.
+- **One watcher writes back, and only after a landing send.** The changedetection watcher marks
+  the pages its message carried as viewed; the mark goes only for those pages, only when the
+  bulletin landed, and a failed mark is left alone.
 - **Schedule times are literal in the timer unit.** systemd does not expand environment variables in
   a unit file, so a `CRIER_SCHEDULE_TIMES` would silently never fire.

@@ -5,6 +5,7 @@ from bale_crier.changedetection import (
     diff_lines,
     fetch_diff,
     fetch_watches,
+    mark_viewed,
 )
 
 BASE = "http://127.0.0.1:5005"
@@ -202,3 +203,46 @@ def test_an_empty_diff_body_is_an_empty_list_not_a_failure(monkeypatch):
     stub(monkeypatch, FakeResponse(text=""))
 
     assert fetch_diff(base_url=BASE, key="k", uuid=UUID).lines == []
+
+
+def stub_put(monkeypatch, response):
+    calls = []
+
+    def put(url, **kwargs):
+        calls.append({"url": url, **kwargs})
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    monkeypatch.setattr(requests, "put", put)
+    return calls
+
+
+def test_marking_a_watch_viewed_sends_that_field_and_nothing_else(monkeypatch):
+    """The body is a partial update, which is what keeps the rest of the watch intact."""
+    calls = stub_put(monkeypatch, FakeResponse("OK"))
+
+    error = mark_viewed(base_url=BASE, key="k", uuid=UUID, at=1792690213)
+
+    assert error == ""
+    assert calls[0]["url"] == f"{BASE}/api/v1/watch/{UUID}"
+    assert calls[0]["headers"] == {"x-api-key": "k"}
+    assert calls[0]["json"] == {"last_viewed": 1792690213}
+
+
+def test_a_refused_key_on_a_mark_says_what_to_fix(monkeypatch):
+    stub_put(monkeypatch, FakeResponse(status_code=403))
+
+    assert mark_viewed(base_url=BASE, key="k", uuid=UUID, at=1) == ACCESS_DENIED
+
+
+def test_another_status_on_a_mark_names_the_code(monkeypatch):
+    stub_put(monkeypatch, FakeResponse(status_code=500))
+
+    assert "500" in mark_viewed(base_url=BASE, key="k", uuid=UUID, at=1)
+
+
+def test_an_unreachable_api_on_a_mark_is_a_value_not_an_exception(monkeypatch):
+    stub_put(monkeypatch, requests.ConnectionError("refused"))
+
+    assert "برقرار نشد" in mark_viewed(base_url=BASE, key="k", uuid=UUID, at=1)

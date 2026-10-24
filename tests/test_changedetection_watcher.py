@@ -73,12 +73,25 @@ class Diffs:
         return self._reads.pop(0)
 
 
-def watcher(read: Watches, tmp_path, diffs: Diffs | None = None, **overrides):
+class Marks:
+    """The calls the watcher would make to clear a page's unread dot."""
+
+    def __init__(self, *errors: str) -> None:
+        self.calls: list[dict] = []
+        self._errors = list(errors)
+
+    def __call__(self, **kwargs) -> str:
+        self.calls.append(kwargs)
+        return self._errors.pop(0) if self._errors else ""
+
+
+def watcher(read: Watches, tmp_path, diffs: Diffs | None = None, marks: Marks | None = None, **overrides):
     return ChangedetectionWatcher(
         settings(**overrides),
         WatcherMemory.load(tmp_path / "watchers.json"),
         read,
         diffs or Diffs(),
+        marks or Marks(),
     )
 
 
@@ -518,3 +531,116 @@ def test_a_page_left_over_is_served_next_run_even_when_another_changes_again(tmp
     assert "https://example.test/models" in first
     assert "https://zen.test/models" not in first
     assert "https://zen.test/models" in second
+
+
+def one_changed_page(tmp_path, **overrides):
+    memory = primed(tmp_path, **{MODELS: 1})
+    marks = Marks()
+    subject = ChangedetectionWatcher(
+        settings(**overrides),
+        memory,
+        Watches([watch(last_changed=99)]),
+        Diffs(DiffRead(['+ "x"'], "")),
+        marks,
+    )
+    return subject, marks
+
+
+def test_a_landed_message_clears_the_dot_of_the_pages_it_named(tmp_path):
+    subject, marks = one_changed_page(tmp_path, changedetection_url="http://127.0.0.1:9999")
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert len(marks.calls) == 1
+    assert marks.calls[0]["uuid"] == MODELS
+    assert marks.calls[0]["at"] == int(NOW.timestamp())
+    assert marks.calls[0]["base_url"] == "http://127.0.0.1:9999"
+    assert marks.calls[0]["key"] == "key"
+
+
+def test_the_mark_is_never_older_than_the_change_it_marks(tmp_path):
+    """A clock behind the snapshot's would leave the dot on, so the change time is the
+    floor."""
+    memory = primed(tmp_path, **{MODELS: 1})
+    marks = Marks()
+    ahead = int(NOW.timestamp()) + 3600
+    subject = ChangedetectionWatcher(
+        settings(), memory, Watches([watch(last_changed=ahead)]), Diffs(DiffRead([], "")), marks
+    )
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert marks.calls[0]["at"] == ahead
+
+
+def test_a_failed_send_marks_nothing_and_remembers_nothing(tmp_path):
+    """The dot is the UI's record of "Bale has not told me yet": a failed send repeats
+    next run, so it must not go out now."""
+    subject, marks = one_changed_page(tmp_path)
+
+    subject.produce(NOW)
+    subject.sent(ok=False, now=NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert marks.calls == []
+
+
+def test_a_quiet_run_marks_nothing(tmp_path):
+    memory = primed(tmp_path, **{MODELS: 5})
+    marks = Marks()
+    subject = ChangedetectionWatcher(settings(), memory, Watches([watch(last_changed=5)]), Diffs(), marks)
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert marks.calls == []
+
+
+def test_a_failed_read_marks_nothing(tmp_path):
+    marks = Marks()
+    subject = ChangedetectionWatcher(
+        settings(), WatcherMemory.load(tmp_path / "w.json"), Watches(WatchesRead(None, "boom")), Diffs(), marks
+    )
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert marks.calls == []
+
+
+def test_a_page_that_did_not_fit_the_message_keeps_its_dot(tmp_path):
+    """Only the pages the message actually named were told; the one left over was not."""
+    memory = primed(tmp_path, **{MODELS: 1, ZEN: 2})
+    huge = DiffRead([f"+ {'y' * 190}"] * DIFF_LINES, "")
+    marks = Marks()
+    subject = ChangedetectionWatcher(
+        settings(),
+        memory,
+        Watches([watch(last_changed=100), watch(uuid=ZEN, url="https://zen.test/models", last_changed=200)]),
+        Diffs(huge, huge),
+        marks,
+    )
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert [call["uuid"] for call in marks.calls] == [MODELS]
+
+
+def test_a_mark_that_fails_does_not_stop_the_next_one(tmp_path):
+    memory = primed(tmp_path, **{MODELS: 1, ZEN: 2})
+    marks = Marks("changedetection پاسخ 500 داد.")
+    subject = ChangedetectionWatcher(
+        settings(),
+        memory,
+        Watches([watch(last_changed=100), watch(uuid=ZEN, url="https://zen.test/models", last_changed=200)]),
+        Diffs(DiffRead([], ""), DiffRead([], "")),
+        marks,
+    )
+
+    subject.produce(NOW)
+    subject.sent(ok=True, now=NOW)
+
+    assert [call["uuid"] for call in marks.calls] == [MODELS, ZEN]

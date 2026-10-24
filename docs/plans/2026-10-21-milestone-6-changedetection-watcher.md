@@ -85,6 +85,10 @@ watcher".
   recorded six watches and said nothing, and a run with one number lowered sent one
   message naming `https://opencode.ai/zen/v1/models` with its two changed lines; the
   run after it was quiet, and the watermark was back at the real number.
+- **Added 2026-10-25, at the owner's request:** the watcher also clears the unread dot of the
+  pages its message carried, by writing `last_viewed` back through the API, and only when the
+  send landed. Checked live in both directions: with a landing send the watch's `viewed` went
+  from false to true, and with a failing send it stayed false.
 - An independent review read the diff before it was committed. It found three things
   that were fixed: a page dropped by the message cap had its watermark advanced (it
   was lost, and the message promised a next time that never came), the first ten

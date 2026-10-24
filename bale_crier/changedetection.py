@@ -1,6 +1,7 @@
 """The changedetection.io API, reduced to what the watcher needs.
 
-The bot asks this API; it is never told. changedetection can push a notification
+The bot asks this API; it is never told. The one thing it writes back is the viewed
+mark, after a message has landed. changedetection can push a notification
 through Apprise, and the Apprise it ships with has no Bale plugin — its telegram
 module is hardcoded to ``api.telegram.org`` — so that path would need a receiving
 server of our own, which this project does not have and does not want. Polling the
@@ -22,6 +23,7 @@ import requests
 from .models import Watch
 
 WATCHES_PATH = "/api/v1/watch"
+WATCH_PATH = "/api/v1/watch/{uuid}"
 DIFF_PATH = "/api/v1/watch/{uuid}/difference/previous/latest"
 # `changesOnly` is what keeps the message to the lines that changed: without it the
 # diff carries the unchanged lines around them as context.
@@ -76,10 +78,15 @@ def _request(
     *,
     key: str,
     timeout: int,
+    method: str = "get",
+    payload: dict | None = None,
     allow: tuple[int, ...] = (200,),
 ) -> tuple[requests.Response | None, str]:
+    # Resolved here, at call time, so a test can stand in for `requests.get`/`put`.
+    call = getattr(requests, method)
+    extra = {"json": payload} if payload is not None else {}
     try:
-        response = requests.get(url, headers={"x-api-key": key}, timeout=timeout)
+        response = call(url, headers={"x-api-key": key}, timeout=timeout, **extra)
     except requests.RequestException as exc:
         return None, f"ارتباط با changedetection برقرار نشد: {exc}"
     if response.status_code == 403:
@@ -165,3 +172,18 @@ def fetch_diff(*, base_url: str, key: str, uuid: str, timeout: int = 30) -> Diff
     if response.status_code == 404:
         return DiffRead([], "")
     return DiffRead(diff_lines(response.text), "")
+
+
+def mark_viewed(*, base_url: str, key: str, uuid: str, at: int, timeout: int = 30) -> str:
+    """Mark one watch as viewed, so its unread dot in the UI goes out.
+
+    The API's own rule, from its spec: a ``last_viewed`` higher than the watch's newest
+    snapshot is what marks it viewed. The body is a partial update, so every other
+    setting of the watch is left exactly as it is. Returns "" when it worked and a
+    Persian sentence otherwise, the way every other call here reports a failure.
+    """
+    url = f"{base_url.rstrip('/')}{WATCH_PATH.format(uuid=uuid)}"
+    _, error = _request(
+        url, key=key, timeout=timeout, method="put", payload={"last_viewed": at}
+    )
+    return error

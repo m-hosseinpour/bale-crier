@@ -578,6 +578,16 @@ def stub_changedetection(monkeypatch, *, last_changed: int = 100):
 
     monkeypatch.setattr(requests, "get", get)
 
+    # The watcher clears the page's unread dot after a message lands: one PUT per page.
+    puts = []
+
+    def put(url, **kwargs):
+        puts.append({"url": url, **kwargs})
+        return ApiResponse(text="OK")
+
+    monkeypatch.setattr(requests, "put", put)
+    return puts
+
 
 def seed_changedetection(tmp_path, last_changed: int) -> None:
     path = tmp_path / "data" / "watchers.json"
@@ -703,3 +713,35 @@ def test_a_failed_send_leaves_the_change_for_the_next_run(tmp_path, monkeypatch)
     assert len(calls) == 1
     blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
     assert blob["changedetection"]["seen"] == {CHANGEDETECTION_UUID: 100}
+
+
+def test_a_changedetection_run_clears_the_dot_of_what_it_sent(tmp_path, monkeypatch):
+    seed_changedetection(tmp_path, 50)
+    puts = stub_changedetection(monkeypatch, last_changed=100)
+    send, _ = stub_sender(SendResult(ok=True))
+
+    run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=send,
+        only=["changedetection"],
+    )
+
+    assert len(puts) == 1
+    assert puts[0]["url"].endswith(f"/api/v1/watch/{CHANGEDETECTION_UUID}")
+    assert puts[0]["json"] == {"last_viewed": int(NOW.timestamp())}
+
+
+def test_a_failed_send_leaves_the_dot_alone(tmp_path, monkeypatch):
+    seed_changedetection(tmp_path, 50)
+    puts = stub_changedetection(monkeypatch, last_changed=100)
+    failing, _ = stub_sender(SendResult(ok=False, error="chat not found"))
+
+    run_once(
+        settings(changedetection_api_key="cd-key"),
+        now=NOW,
+        send=failing,
+        only=["changedetection"],
+    )
+
+    assert puts == []

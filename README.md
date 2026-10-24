@@ -181,6 +181,13 @@ A failed read of the API is a bulletin of its own, at most once every
 found them, so a change it could not see still speaks on the next run that can — except on the very
 first run, where there were no numbers yet and the next successful run takes the silent baseline.
 
+Once the message has landed, the watcher also clears the page's unread dot in changedetection —
+the one thing this bot writes anywhere but Bale. It does that by sending `last_viewed` back
+through the same API, after the send succeeded, and only for the pages the message carried: a
+page left for the next message keeps its dot, and a failed send keeps every dot. This changes
+what the dot means, deliberately — it no longer says "I have not opened this diff in the UI",
+it says "Bale has not told me about this change yet".
+
 It runs every three hours at half past (00:30, 03:30, … 21:30), on
 `bale-crier-changedetection.timer` with `--only changedetection`. Three hours is how often
 changedetection itself fetches a page here (its global `time_between_check`); the half hour puts

@@ -104,7 +104,7 @@ bale_crier/
   llm.py         the AvalAI client, reduced to the text or a short error code
   run.py         one run: gather, send, record
   cli.py         the entry point
-  changedetection.py  the changedetection.io API: the watch list and one watch's diff
+  changedetection.py  the changedetection.io API: the watch list, one watch's diff, the viewed mark
   watchers/      one module per watcher: avalai_credit.py, disk.py, changedetection.py
   notes/         reading the lists, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
@@ -388,6 +388,18 @@ is still reported, with one line saying the text could not be read: `last_change
 already proved the change, so losing the detail must not lose the message. The diff
 is the API's snapshot diff, so a watch's own `ignore_text` rules are not applied to
 it.
+
+**The unread dot goes out after the message lands** (owner's request, 2026-10-25).
+changedetection keeps a per-watch flag — its unread dot — for a change the operator has
+not opened in the UI: `has_unviewed` is "a newer snapshot than `last_viewed`", and the
+API's own rule is that a `last_viewed` above the newest snapshot marks a watch viewed
+(`PUT /api/v1/watch/<uuid>`, a partial body the API merges). Once a message has landed,
+the watcher writes that for the pages the message carried — through a hook the run loop
+calls after the sends (`Producer.sent`), so a failed send leaves every dot on. Pages left
+over for the next message keep theirs: they have not been told yet. This is the one write
+the bot makes anywhere but Bale, and it redefines the dot: from "not opened in the UI" to
+"Bale has not told me yet". A mark that fails is not retried and adds no line to the
+message — a dot left on is the safe direction, and the message itself already went.
 
 **The watermark only advances when the message landed.** The run saves no watcher
 memory after a failed send (`run.py`), so a Bale outage repeats a change on the next

@@ -19,6 +19,11 @@ class Producer(Protocol):
 
     def produce(self, now: datetime) -> list[Bulletin]: ...
 
+    # Optional, and only when a producer needs it: `sent(ok, now)` is called after its
+    # bulletins have gone out, so one that writes back to its source (the
+    # changedetection watcher clears the unread dots) learns whether they landed. The
+    # note, news, credit and disk producers define no such method.
+
 
 class SmokeProducer:
     """One fixed test bulletin, so the path can be proved after a deploy."""
