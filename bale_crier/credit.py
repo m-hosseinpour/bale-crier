@@ -49,7 +49,12 @@ def _number(value: object) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def _datetime(value: object) -> datetime | None:
+def parse_timestamp(value: object) -> datetime | None:
+    """One timestamp from the provider or from a watcher's memory, always aware.
+
+    A naive timestamp is read as UTC: the provider sends UTC, and memory written by
+    an older run may have lost the offset. An unreadable one is ``None``.
+    """
     if not value:
         return None
     try:
@@ -70,7 +75,7 @@ def _parse_report(body: Mapping[str, object]) -> CreditReport:
     for raw in listed:
         if not isinstance(raw, Mapping):
             continue
-        end = _datetime(raw.get("end_date"))
+        end = parse_timestamp(raw.get("end_date"))
         remaining = _number(raw.get("remaining_irt"))
         packages.append(
             Package(

@@ -280,6 +280,45 @@ def test_the_credit_watcher_says_nothing_when_the_balance_is_above_the_threshold
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
+def test_a_failed_expiry_notice_repeats_next_run_instead_of_being_lost(tmp_path, monkeypatch):
+    stub_credit(
+        monkeypatch,
+        {
+            "remaining_irt": 500_000,
+            "credit_sources": {
+                "packages": [
+                    {
+                        "template_id": "w-1",
+                        "name": "وایب کُدر هفتگی پایه",
+                        "remaining_irt": "300000",
+                        "end_date": "2026-10-17T20:30:00Z",
+                    }
+                ]
+            },
+        },
+    )
+    failing, _ = stub_sender(SendResult(ok=False, error="no route"))
+
+    run_once(settings(avalai_api_key="key"), now=NOW, send=failing, only=["credit"])
+
+    # The memory is written only when every send landed, so the notice is not lost.
+    assert not (tmp_path / "data" / "watchers.json").exists()
+    assert [record.ok for record in read_all(path=tmp_path / "data" / "history.jsonl")] == [False]
+
+    send, calls = stub_sender(SendResult(ok=True))
+    run_once(settings(avalai_api_key="key"), now=NOW, send=send, only=["credit"])
+
+    assert len(calls) == 1
+    assert "منقضی" in calls[0]["text"]
+    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
+    assert blob["credit"]["expiry_announced"]
+
+    quiet, quiet_calls = stub_sender(SendResult(ok=True))
+    run_once(settings(avalai_api_key="key"), now=NOW, send=quiet, only=["credit"])
+
+    assert quiet_calls == []
+
+
 def test_the_disk_watcher_is_left_out_of_the_daily_set(tmp_path):
     producers = build_producers(settings(), memory=memory(tmp_path))
 

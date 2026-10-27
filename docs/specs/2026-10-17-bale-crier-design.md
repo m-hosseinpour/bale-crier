@@ -255,6 +255,7 @@ There are therefore five timers: `bale-crier.timer` for the daily bulletins,
 | `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
 | `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` | how often an unreadable credit may speak (default 24) |
+| `CRIER_CREDIT_EXPIRY_WARNING_HOURS` | how long before a weekly package lapses the owner hears of it (default 24, at least above 0) |
 | `CRIER_DISK_PATH` | the filesystem the disk watcher reads (default `/`) |
 | `CRIER_DISK_THRESHOLD_GIB` | the free-space threshold in GiB (default 2) |
 | `CRIER_DISK_REMINDER_HOURS` | how often a still-low disk may remind the owner (default 24) |
@@ -308,6 +309,26 @@ nothing is a watcher nobody notices is broken.
 
 The bulletin reports the numbers, with no buying advice and no "nearly out"
 colour of its own. The threshold is the owner's, not the bot's.
+
+**A weekly package about to lapse is its own bulletin** (owner's request,
+2026-10-27). The same read already carries each package's `end_date`, so this
+costs no second call: a weekly package that still holds money and whose end date
+is inside `CRIER_CREDIT_EXPIRY_WARNING_HOURS` (default 24) speaks once, naming the
+package, the time left and the money left in it. The announcement is remembered
+per package by name and end date, because the check runs hourly and a package
+inside its window would otherwise be announced every hour; the entry is pruned
+once the package has lapsed, so the next weekly package warns again. Two things
+are deliberately silent: a weekly package with nothing left in it (an empty pot
+lapsing is not news), and every daily package (its whole life is a day, so a
+day's warning would be on from the moment it was bought). Like the threshold
+bulletin, this one states what is left and when it goes, and advises nothing.
+
+A package whose `remaining_irt` cannot be read is still announced: the end date
+was read even when the money was not, and the amount is replaced by one line
+saying the balance could not be read — a failed number is never a zero. And as
+with every latch here, the memory is written only when every send in the run
+landed, so a failed send repeats the notice on the next run rather than losing
+it.
 
 **It runs hourly, on its own timer.** A threshold crossed at 09:00 should not
 wait for the afternoon. Checking often costs nothing, because the latch — not the

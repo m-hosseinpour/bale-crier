@@ -120,6 +120,15 @@ and it says the reading failed — **"I cannot tell" is never announced as "the 
 bulletin reports the numbers and nothing else: no buying advice, and no "nearly out" colour of its
 own. The threshold is the owner's, not the bot's.
 
+The same read also checks the **weekly package's clock**. A weekly package that still holds money
+and whose end date is inside `CRIER_CREDIT_EXPIRY_WARNING_HOURS` (default 24) speaks once, naming
+the package, the time left and the money left in it. It is remembered per package by name and end
+date, so the hourly check does not become an hourly message; the entry is dropped after the package
+lapses, so the next weekly package warns again. An empty package lapsing is not news, and a daily
+package is never announced — its whole life is a day, so a day's warning would be on from the
+moment it was bought. A package whose balance could not be read is still announced, with one line
+saying the amount was not read instead of a zero.
+
 The latch is the watcher's own memory, deliberately separate from the history: the history records
 what the owner read, and nothing else.
 
@@ -316,7 +325,9 @@ CRIER_SMOKE=1 uv run python -m bale_crier
 
 And prove the credit watcher by hand. With the balance above the threshold it sends nothing; to see
 the latch work, raise `CRIER_CREDIT_THRESHOLD_IRT` above the current balance, run once and watch one
-alert arrive, then run again and watch the latch hold.
+alert arrive, then run again and watch the latch hold. The weekly package's notice is proved the same
+way: raise `CRIER_CREDIT_EXPIRY_WARNING_HOURS` above the package's remaining lifetime, run once and
+watch one notice arrive, then run again and watch the package stay remembered.
 
 ```sh
 uv run python -m bale_crier --only credit

@@ -8,7 +8,8 @@ daily digest of AI news, picked and written in Persian. Lessons come later.
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** milestones 1–6 are built — the path end to end, the AvalAI credit watcher, the owner's
+**Status:** milestones 1–6 are built — the path end to end, the AvalAI credit watcher (the balance
+threshold, and a weekly package inside `CRIER_CREDIT_EXPIRY_WARNING_HOURS` of lapsing), the owner's
 lists (reading them, choosing a note, rewording it), the news digest (the Google News feed, the hard
 filter and the seen set, the model's selection), the disk watcher (free space below a threshold,
 hourly, with a latch and a daily reminder), and the changedetection watcher (the pages

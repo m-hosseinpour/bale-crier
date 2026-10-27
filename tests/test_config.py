@@ -105,12 +105,14 @@ def test_the_credit_settings_take_their_values_from_the_environment(monkeypatch)
     monkeypatch.setenv("CRIER_CREDIT_THRESHOLD_IRT", "75000")
     monkeypatch.setenv("CRIER_WATCHERS_STATE_PATH", "state/watchers.json")
     monkeypatch.setenv("CRIER_CREDIT_UNKNOWN_ALERT_HOURS", "6")
+    monkeypatch.setenv("CRIER_CREDIT_EXPIRY_WARNING_HOURS", "12")
 
     settings = load_settings()
 
     assert settings.credit_threshold_irt == 75000
     assert settings.watchers_state_path == Path("state/watchers.json")
     assert settings.credit_unknown_alert_hours == 6
+    assert settings.credit_expiry_warning_hours == 12
 
 
 def test_a_zero_unknown_alert_window_is_refused(monkeypatch):
@@ -124,6 +126,17 @@ def test_a_zero_unknown_alert_window_is_refused(monkeypatch):
     message = str(caught.value)
     assert "CRIER_CREDIT_UNKNOWN_ALERT_HOURS" in message
     assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_a_zero_expiry_warning_window_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_CREDIT_EXPIRY_WARNING_HOURS", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    assert "CRIER_CREDIT_EXPIRY_WARNING_HOURS" in str(caught.value)
 
 
 def test_the_disk_settings_take_their_values_from_the_environment(monkeypatch):

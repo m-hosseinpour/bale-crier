@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     watchers_state_path: Path = Path("data/watchers.json")
     # Bounded above zero: a window of zero would speak on every failed read.
     credit_unknown_alert_hours: float = Field(default=24, gt=0)
+    # How long before a weekly package lapses the owner hears about it, in hours.
+    # Bounded above zero: a window of zero is never entered, so it would say nothing.
+    credit_expiry_warning_hours: float = Field(default=24, gt=0)
     # The local port, not the public hostname: the watcher talks to changedetection
     # on the loopback, so Caddy and TLS are not on the path and a public outage
     # cannot silence the watch.
