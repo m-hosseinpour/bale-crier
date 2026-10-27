@@ -90,7 +90,7 @@ N days" floor: with the notes ordered by last send, such a floor can only ever r
 cycle had already picked.
 
 The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as one
-paragraph of three or four sentences saying why the note is worth acting on and how to do it today,
+paragraph of two sentences saying why the note is worth acting on and how to do it today,
 with the wordings it already arrived in supplied so the model can avoid them. The model may explain,
 compare or give an example, but it may not invent a number, statistic, quote or event: the extra
 lines are application, not new facts. The history stores the expanded text, because that is what the
@@ -289,10 +289,11 @@ left empty there and inherits that same key, so the rewording works without a se
 is not killed while it waits out a feed fetch, a model call and a send in turn. Keep it above
 `CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
-The times are literal `OnCalendar` lines in the unit files — 08:00, 14:00 and 20:00 with a ten-minute
-randomized delay in `bale-crier.timer`; `hourly` with a two-minute spread in `bale-crier-credit.timer`
-and in `bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a two-minute spread in
-`bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in `bale-crier-news.timer`.
+The times are literal `OnCalendar` lines in the unit files — 08:00 and 20:00 with a ten-minute
+randomized delay in `bale-crier.timer` (twice a day, one note per run); `hourly` with a two-minute
+spread in `bale-crier-credit.timer` and in `bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a
+two-minute spread in `bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in
+`bale-crier-news.timer`.
 systemd expands no environment variable in a unit file, so a schedule setting would silently never
 fire. To change a time, edit the unit, copy it again and run `systemctl --user daemon-reload`.
 

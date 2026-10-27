@@ -2,7 +2,8 @@
 
 The model expands the note into a short Persian paragraph — what the item is
 worth and how to do it today — so the same item never arrives in the same words
-twice; the earlier wordings are handed to it so it can avoid them. A failed call
+twice; the earlier wordings are handed to it so it can avoid them. Two sentences,
+not three or four: the owner cut the length in half (2026-10-27). A failed call
 is not a lost note (owner's ruling, 2026-10-17): the bulletin carries the note's
 own text followed by one short line saying the rewording did not happen, and the
 history then records what was actually sent.
@@ -22,7 +23,7 @@ PREVIOUS_LIMIT = 3
 
 SYSTEM_INSTRUCTION = (
     "تو یادداشت‌های شخصی صاحب ربات را به یک پیام فارسیِ تازه تبدیل می‌کنی. "
-    "معنی یادداشت را نگه دار و آن را در یک پاراگراف سه تا چهار جمله‌ای بسط بده؛ "
+    "معنی یادداشت را نگه دار و آن را در یک پاراگراف دو جمله‌ای بسط بده؛ "
     "خودِ یادداشت را عیناً تکرار نکن. "
     "بگو چرا این یادداشت به کار می‌آید و چطور می‌شود همین امروز انجامش داد؛ "
     "توضیح، تشبیه و مثال آزاد است. "
@@ -45,7 +46,7 @@ def build_messages(note: Note, previous: Sequence[str]) -> list[dict[str, str]]:
         lines.append("پیش‌تر این متن‌ها فرستاده شده‌اند؛ آن‌ها را تکرار نکن و بازنویسی تازه‌ای بساز:")
         lines.extend(f"- {text}" for text in previous)
     lines.append("")
-    lines.append("همین یادداشت را در یک پاراگراف سه تا چهار جمله‌ای، تازه، کاربردی و با لحنی گرم بسط بده.")
+    lines.append("همین یادداشت را در یک پاراگراف دو جمله‌ای، تازه، کاربردی و با لحنی گرم بسط بده.")
     return [
         {"role": "system", "content": SYSTEM_INSTRUCTION},
         {"role": "user", "content": "\n".join(lines)},

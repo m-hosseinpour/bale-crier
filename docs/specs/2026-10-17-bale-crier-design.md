@@ -160,8 +160,8 @@ one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
 The prompt asks for: the note's meaning kept, then **expanded** into one paragraph
-of three or four Persian sentences — why the note is worth acting on, and how to
-do it today, with an explanation, analogy or example free to be added, but no
+of two Persian sentences — why the note is worth acting on, and how to do it
+today, with an explanation, analogy or example free to be added, but no
 number, statistic, quote or event invented; a fresh wording each time, with the
 previous wordings of the same note supplied so the model can avoid them; correct
 U+200C in every half-space word, taught with worked examples (`می‌شود`,
@@ -179,7 +179,9 @@ explaining and applying the note, not in asserting facts about the world — and
 that the extra lines live inside the rewording rather than after it, so the
 "nothing appended" ruling still holds. Verified on 2026-10-21 with three real
 calls through `CRIER_OPEN_AI_MODEL`: three to four sentences, no line breaks,
-roughly 400 to 500 characters.
+roughly 400 to 500 characters. **Halved on 2026-10-27** (owner's ruling): that
+much read as too long in the chat, so the prompt now asks for two sentences
+instead of three or four.
 
 The reworded text, not the note's own text, is what the history stores: that is
 the record of what the owner actually read.
@@ -222,8 +224,9 @@ calendar spec. Changing the times means editing the unit and running
 `systemctl --user daemon-reload`; the unit's own comments say so.
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
-producer has no timer of its own — with two or three runs a day that is the
-owner's "several per day". The credit watcher, the disk watcher, the
+producer has no timer of its own — with two runs a day (08:00 and 20:00, the
+owner's choice on 2026-10-27, down from three) that is "twice a day". The credit
+watcher, the disk watcher, the
 changedetection watcher and the news digest each have a timer of their own, so
 they are not part of those runs.
 
@@ -464,8 +467,9 @@ send is verified by hand, once per milestone.
 
 - Which other watchers the owner wants, beyond AvalAI credit, free disk space and
   the pages changedetection.io watches.
-- The daily times are 08:00, 14:00 and 20:00 as a default the owner has not
-  confirmed; the hourly credit check needs no confirmation.
+- The daily times are 08:00 and 20:00 — twice a day, as the owner chose on
+  2026-10-27, down from the three-times default; the hourly credit check needs no
+  confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project
   keeps its own news; the news digest is a new, different thing — the day's AI trends from a web
   feed — and has its own design (`2026-10-17-news-digest-design.md`).

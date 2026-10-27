@@ -98,9 +98,11 @@ def test_the_messages_are_persian_and_the_instruction_keeps_its_half_spaces():
     assert "تجربه‌ها" in SYSTEM_INSTRUCTION
 
 
-def test_the_instruction_asks_for_a_paragraph_of_three_or_four_sentences():
+def test_the_instruction_asks_for_a_paragraph_of_two_sentences():
+    # Halved from three or four on 2026-10-27: the bulletins read too long.
     assert "پاراگراف" in SYSTEM_INSTRUCTION
-    assert "سه تا چهار" in SYSTEM_INSTRUCTION
+    assert "دو جمله" in SYSTEM_INSTRUCTION
+    assert "سه تا چهار" not in SYSTEM_INSTRUCTION
 
 
 def test_the_instruction_no_longer_settles_for_one_short_sentence():
