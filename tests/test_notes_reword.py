@@ -98,18 +98,20 @@ def test_the_messages_are_persian_and_the_instruction_keeps_its_half_spaces():
     assert "تجربه‌ها" in SYSTEM_INSTRUCTION
 
 
-def test_the_instruction_asks_for_a_paragraph_of_two_sentences():
-    # Halved from three or four on 2026-10-27: the bulletins read too long.
-    assert "پاراگراف" in SYSTEM_INSTRUCTION
+def test_the_instruction_asks_for_two_short_sentences_under_a_length_cap():
+    # Halved on 2026-10-27: the bulletins read too long. The sentence count alone
+    # was not enough — a live call with "two sentences" still ran to 427
+    # characters — so the instruction carries a character cap as well.
     assert "دو جمله" in SYSTEM_INSTRUCTION
+    assert "دویست نویسه" in SYSTEM_INSTRUCTION
     assert "سه تا چهار" not in SYSTEM_INSTRUCTION
 
 
-def test_the_instruction_no_longer_settles_for_one_short_sentence():
-    # The owner's ruling (2026-10-21): a footnote-length note is not worth sending;
-    # "کوتاه" is what used to pull the answer back down to one line.
-    assert "کوتاه" not in SYSTEM_INSTRUCTION
+def test_the_instruction_still_asks_for_more_than_one_sentence():
+    # The owner's ruling (2026-10-21): a one-line bullet is not worth sending.
+    # "کوتاه" came back on 2026-10-27 attached to two sentences, not to one.
     assert "یک جمله" not in SYSTEM_INSTRUCTION
+    assert "دو جملهٔ کوتاه" in SYSTEM_INSTRUCTION
 
 
 def test_the_instruction_forbids_inventing_facts():

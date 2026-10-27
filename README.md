@@ -89,8 +89,8 @@ note gets follows from the size of its list. There is deliberately no separate "
 N days" floor: with the notes ordered by last send, such a floor can only ever return the note the
 cycle had already picked.
 
-The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as one
-paragraph of two sentences saying why the note is worth acting on and how to do it today,
+The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as two short
+sentences under 200 characters saying why the note is worth acting on and how to do it today,
 with the wordings it already arrived in supplied so the model can avoid them. The model may explain,
 compare or give an example, but it may not invent a number, statistic, quote or event: the extra
 lines are application, not new facts. The history stores the expanded text, because that is what the

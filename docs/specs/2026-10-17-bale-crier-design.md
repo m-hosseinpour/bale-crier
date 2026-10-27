@@ -159,9 +159,9 @@ call. The model is configurable (`CRIER_OPEN_AI_MODEL`); the default is a cheap
 one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
-The prompt asks for: the note's meaning kept, then **expanded** into one paragraph
-of two Persian sentences — why the note is worth acting on, and how to do it
-today, with an explanation, analogy or example free to be added, but no
+The prompt asks for: the note's meaning kept, then **expanded** into two short
+Persian sentences, under 200 characters — why the note is worth acting on, and how to
+do it today, with an explanation, analogy or example free to be added, but no
 number, statistic, quote or event invented; a fresh wording each time, with the
 previous wordings of the same note supplied so the model can avoid them; correct
 U+200C in every half-space word, taught with worked examples (`می‌شود`,
@@ -180,8 +180,11 @@ that the extra lines live inside the rewording rather than after it, so the
 "nothing appended" ruling still holds. Verified on 2026-10-21 with three real
 calls through `CRIER_OPEN_AI_MODEL`: three to four sentences, no line breaks,
 roughly 400 to 500 characters. **Halved on 2026-10-27** (owner's ruling): that
-much read as too long in the chat, so the prompt now asks for two sentences
-instead of three or four.
+much read as too long in the chat. Two sentences alone did not do it — a live
+call cut to "two sentences" still came back at 427 characters, because the model
+only packed the same length into fewer periods — so the instruction now also caps
+the whole text at 200 characters. Two more live calls through the same model
+answered at 174 and 180 characters, two sentences each.
 
 The reworded text, not the note's own text, is what the history stores: that is
 the record of what the owner actually read.
