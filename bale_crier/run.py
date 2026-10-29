@@ -27,6 +27,10 @@ NEWS = NewsProducer.name
 # Every name `--only` may name, whether or not this run can build it.
 KNOWN_PRODUCERS = (SMOKE, CREDIT, DISK, CHANGEDETECTION, NOTE, NEWS)
 
+# A sender that failed without a word — an empty `error` — still gets a line in the
+# journal, and an empty one there would read as a bug in the reporting.
+NO_REASON = "بدون توضیح"
+
 
 def build_producers(
     settings: Settings,
@@ -79,6 +83,7 @@ def run_once(
 
     sent = 0
     failed = 0
+    errors: list[str] = []
     for producer in producers:
         # Per producer, because one that also writes back — today only the
         # changedetection watcher, which clears the pages' unread dots — must learn
@@ -95,6 +100,7 @@ def run_once(
                 sent += 1
             else:
                 failed += 1
+                errors.append(result.error or NO_REASON)
             landed = landed and result.ok
             # Written for a failed send too: a silent failure is the one outcome the
             # owner cannot debug afterwards.
@@ -106,6 +112,7 @@ def run_once(
                     list_name=bulletin.list_name,
                     note_id=bulletin.note_id,
                     ok=result.ok,
+                    error=result.error,
                 ),
                 path=settings.history_path,
                 max_lines=settings.history_max_lines,
@@ -122,4 +129,9 @@ def run_once(
     if not failed:
         memory.save()
 
-    return RunReport(sent=sent, failed=failed, producers=[producer.name for producer in producers])
+    return RunReport(
+        sent=sent,
+        failed=failed,
+        producers=[producer.name for producer in producers],
+        errors=errors,
+    )

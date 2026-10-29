@@ -203,3 +203,31 @@ def test_previous_texts_with_a_limit_below_one_gives_nothing(tmp_path):
     assert previous_texts(
         path=path, note_id="reading-1", list_name="reading", limit=0
     ) == []
+
+
+def test_a_failed_record_keeps_the_senders_reason(tmp_path):
+    path = tmp_path / "history.jsonl"
+
+    append(
+        record(kind="news", ok=False, error="message is too long"),
+        path=path,
+        max_lines=5000,
+    )
+
+    assert read_all(path=path)[0].error == "message is too long"
+
+
+def test_a_line_written_before_the_error_field_still_reads(tmp_path):
+    """The file predates the field: those lines have no reason, and must not become
+    unreadable just because the model gained one."""
+    path = tmp_path / "history.jsonl"
+    path.write_text(
+        '{"ts": "2026-10-29T05:35:13.178102Z", "kind": "news", "text": "متن",'
+        ' "list_name": null, "note_id": null, "ok": false}\n',
+        encoding="utf-8",
+    )
+
+    records = read_all(path=path)
+
+    assert [record.ok for record in records] == [False]
+    assert records[0].error is None

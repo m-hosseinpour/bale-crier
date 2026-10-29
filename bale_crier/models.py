@@ -6,7 +6,7 @@ one file.
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Package(BaseModel):
@@ -90,7 +90,12 @@ class Bulletin(BaseModel):
 
 
 class HistoryRecord(BaseModel):
-    """One line of the history: one bulletin that was sent, and how it went."""
+    """One line of the history: one bulletin that was sent, and how it went.
+
+    ``error`` is the sender's own words when the send failed. Without it a refused
+    bulletin is a bare ``ok: false``, and the cause — a message past the API's
+    character limit, a chat the bot cannot reach — has to be guessed from the text.
+    """
 
     ts: datetime
     kind: str
@@ -98,11 +103,17 @@ class HistoryRecord(BaseModel):
     list_name: str | None = None
     note_id: str | None = None
     ok: bool
+    error: str | None = None
 
 
 class RunReport(BaseModel):
-    """What one run did, for the summary line and the exit code."""
+    """What one run did, for the summary line and the exit code.
+
+    ``errors`` holds one reason per failed send, in the order they failed, so the
+    journal can say why as well as how many.
+    """
 
     sent: int
     failed: int
     producers: list[str]
+    errors: list[str] = Field(default_factory=list)

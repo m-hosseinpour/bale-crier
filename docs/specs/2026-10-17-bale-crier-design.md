@@ -129,7 +129,12 @@ tests/
   has never changed).
 - `Bulletin` — `kind` (`smoke` | `alert` | `note` | `news` | `watch`), `text`,
   `note_id` optional, `list_name` optional (which list a note came from).
-- history line — `{ts, kind, list_name, note_id, text, ok}`.
+- `RunReport` — `sent`, `failed`, `producers`, and `errors` (one reason per failed
+  send, in the order they failed).
+- history line — `{ts, kind, list_name, note_id, text, ok, error}`. `error` is the sender's own
+  reason when the send failed, and is absent from lines written before 2026-10-29: a refused
+  bulletin used to be a bare `ok: false`, which is why the five lost digests of that week had to be
+  diagnosed from the length of their text.
 - watcher memory — one JSON object per producer name, in
   `CRIER_WATCHERS_STATE_PATH`. Its contents are the producer's own business; the
   store only loads, hands out and saves it.

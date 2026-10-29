@@ -70,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
 
     report = run_once(settings, now=datetime.now(timezone.utc), only=args.only)
 
+    # The count alone leaves the owner with nothing to act on: the sender's own words
+    # are what say a message was too long, or that the chat is unreachable.
+    for error in report.errors:
+        print(f"قاصد: ارسال ناموفق بود — {error}", file=sys.stderr)
+
     producers = "، ".join(report.producers) if report.producers else "هیچ"
     print(
         f"قاصد: {report.sent} پیام فرستاده شد و {report.failed} پیام ناموفق بود "

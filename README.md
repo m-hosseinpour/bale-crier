@@ -42,8 +42,9 @@ uv run python -m bale_crier
 ```
 
 A run asks every producer for bulletins, sends each one to Bale, and appends one line per bulletin
-to the history — whatever the outcome, so a failed send is still on record. The exit code is zero
-when nothing failed. The watcher memory is written only when every send landed, so a failed send
+to the history — whatever the outcome, so a failed send is still on record. That line carries the
+sender's own reason when the send failed (`error`), and the run's summary names each reason on
+stderr, so a refusal is never a bare count. The exit code is zero when nothing failed. The watcher memory is written only when every send landed, so a failed send
 costs a repeat next run rather than the change it was carrying.
 
 `CRIER_SMOKE=1` replaces the producers with the smoke producer, which sends one fixed test bulletin.

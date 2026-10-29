@@ -11,7 +11,7 @@ from bale_crier.config import Settings
 from bale_crier.history import read_all
 from bale_crier.memory import WatcherMemory
 from bale_crier.models import SendResult
-from bale_crier.run import build_producers, run_once
+from bale_crier.run import NO_REASON, build_producers, run_once
 
 NOW = datetime(2026, 10, 17, 8, 30, tzinfo=timezone.utc)
 GIB = 1024**3
@@ -196,7 +196,7 @@ def test_main_returns_zero_when_the_send_lands(monkeypatch, tmp_path, capsys):
     assert [record.ok for record in records] == [True]
 
 
-def test_main_returns_non_zero_when_the_send_fails(monkeypatch, tmp_path):
+def test_main_returns_non_zero_when_the_send_fails(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
     monkeypatch.setenv("CRIER_SMOKE", "1")
@@ -211,6 +211,31 @@ def test_main_returns_non_zero_when_the_send_fails(monkeypatch, tmp_path):
     assert code != 0
     records = read_all(path=tmp_path / "data" / "history.jsonl")
     assert [record.ok for record in records] == [False]
+    # The count alone says nothing to act on: the reason reaches the journal too.
+    assert "chat not found" in capsys.readouterr().err
+
+
+def test_a_failed_send_is_recorded_with_the_senders_reason(tmp_path):
+    send, _ = stub_sender(SendResult(ok=False, error="message is too long"))
+
+    report = run_once(
+        settings(smoke=True), now=NOW, send=send, only=["smoke"]
+    )
+
+    assert report.failed == 1
+    assert report.errors == ["message is too long"]
+    record = read_all(path=tmp_path / "data" / "history.jsonl")[0]
+    assert record.ok is False
+    assert record.error == "message is too long"
+
+
+def test_a_failure_with_no_reason_still_says_so_in_persian(tmp_path):
+    send, _ = stub_sender(SendResult(ok=False))
+
+    report = run_once(settings(smoke=True), now=NOW, send=send, only=["smoke"])
+
+    assert report.errors == [NO_REASON]
+    assert any("\u0600" <= char <= "\u06ff" for char in report.errors[0])
 
 
 def test_main_reports_a_misconfiguration_as_persian_prose(capsys):
@@ -502,6 +527,8 @@ def test_a_digest_goes_out_in_groups_and_each_message_gets_its_own_record(tmp_pa
     records = read_all(path=tmp_path / "data" / "history.jsonl")
     assert [record.ok for record in records] == [True, False]
     assert [record.text for record in records] == calls
+    assert [record.error for record in records] == [None, "message is too long"]
+    assert report.errors == ["message is too long"]
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
