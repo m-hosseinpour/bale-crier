@@ -1,6 +1,6 @@
 import requests
 
-from bale_crier.bale import SEND_MESSAGE_PATH, send_message
+from bale_crier.bale import SEND_MESSAGE_PATH, markdown_link, send_message
 
 
 class FakeResponse:
@@ -106,3 +106,31 @@ def test_ok_false_without_a_description_still_carries_the_body(monkeypatch):
     # The repr of the body, not a description — hence the brace.
     assert result.error.startswith("{")
     assert "400" in result.error
+
+
+def test_a_markdown_link_hides_the_address_under_its_label():
+    assert (
+        markdown_link("The Straits Times", "https://news.google.com/rss/articles/x", fallback="لینک")
+        == "[The Straits Times](https://news.google.com/rss/articles/x)"
+    )
+
+
+def test_brackets_in_the_label_cannot_close_the_link_early():
+    """Bale renders every message as Markdown: a `]` in the label would end it and
+    spill the rest of the line as text. Dropping the brackets keeps the name and the
+    link intact."""
+    link = markdown_link("Daily [Removed] News", "https://x.test/1", fallback="لینک")
+
+    assert link == "[Daily Removed News](https://x.test/1)"
+
+
+def test_a_parenthesis_in_the_address_is_encoded_not_left_to_close_the_link():
+    link = markdown_link("S", "https://x.test/a_(b)", fallback="لینک")
+
+    assert link == "[S](https://x.test/a_%28b%29)"
+
+
+def test_an_empty_label_falls_back_rather_than_leaving_empty_brackets():
+    link = markdown_link("  ", "https://x.test/1", fallback="لینک خبر")
+
+    assert link == "[لینک خبر](https://x.test/1)"

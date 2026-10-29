@@ -185,7 +185,9 @@ def test_a_just_seen_change_says_so_rather_than_zero_minutes(tmp_path):
     assert "همین حالا" in subject.produce(NOW)[0].text
 
 
-def test_a_watch_with_a_title_shows_it_above_the_url(tmp_path):
+def test_a_watch_with_a_title_puts_its_address_under_the_title(tmp_path):
+    """Bale renders Markdown, so the page's name is what the owner sees and taps; the
+    address is in the text behind it, not in the line."""
     memory = primed(tmp_path, **{MODELS: 1})
     subject = ChangedetectionWatcher(
         settings(),
@@ -196,7 +198,23 @@ def test_a_watch_with_a_title_shows_it_above_the_url(tmp_path):
 
     text = subject.produce(NOW)[0].text
 
-    assert "مدل‌های زن\nhttps://example.test/models" in text
+    assert "[مدل‌های زن](https://example.test/models)" in text
+    assert "https://example.test/models — ۲۰" not in text
+
+
+def test_a_watch_with_no_title_still_gets_a_label(tmp_path):
+    """Markdown has no link without one, and the API allows an empty title."""
+    memory = primed(tmp_path, **{MODELS: 1})
+    subject = ChangedetectionWatcher(
+        settings(),
+        memory,
+        Watches([watch(last_changed=10)]),
+        Diffs(DiffRead([], "")),
+    )
+
+    text = subject.produce(NOW)[0].text
+
+    assert "[صفحه](https://example.test/models)" in text
 
 
 def test_every_changed_page_of_one_run_is_one_bulletin(tmp_path):

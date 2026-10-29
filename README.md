@@ -175,8 +175,9 @@ silently. A number that moves *backwards* (history cleared in changedetection) i
 change, so it is recorded without a word.
 
 One bulletin per run, not one per page: the pages are checked together, and a run rarely finds more
-than one. Each page is a block — its address, how long ago the change was seen, then the changed
-lines in patch style: `+` for what appeared, `-` for what went away, and both when a line was
+than one. Each page is a block — its title as a Markdown link carrying the page's address (Bale
+renders every message as Markdown, so the address does not fill the line; a page with no title shows
+«صفحه»), how long ago the change was seen, then the changed lines in patch style: `+` for what appeared, `-` for what went away, and both when a line was
 rewritten. A block carries at most ten changed lines — up to five from each side, borrowing the rest
 when one side is short — plus a line counting the remainder, so a rewritten page does not show only
 what vanished. The whole text stays inside one Bale
@@ -258,7 +259,7 @@ note run leaves it out and the two cannot race over one seen set. `--only news` 
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
   models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note, Story, Watch
-  bale.py        the sender — the only place that talks to Bale
+  bale.py        the sender — the only place that talks to Bale, and the one that knows its Markdown
   history.py     append-only JSONL with a size cap
   memory.py      a watcher's own state, across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers

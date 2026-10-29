@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from typing import NamedTuple, TypeVar
 
+from ..bale import markdown_link
 from ..models import Story
 from ..persian import digits
 
@@ -95,18 +96,6 @@ class Chosen(NamedTuple):
 
     line: str
     story: Story
-
-
-def markdown_link(label: str, url: str) -> str:
-    """The address as a Markdown link under ``label``, safe to paste into a message.
-
-    A ``]`` in the label would close it early and spill the rest of the line as text,
-    so brackets are dropped from the label — a source name is a name with or without
-    them. Parentheses in the address would end it the same way, and percent-encoding
-    those two characters leaves the same address, one a browser still opens.
-    """
-    clean = label.replace("[", "").replace("]", "").strip() or LINK_FALLBACK
-    return f"[{clean}]({url.replace('(', '%28').replace(')', '%29')})"
 
 
 def blocklist_words(raw: str) -> tuple[str, ...]:
@@ -211,9 +200,10 @@ def digest_text(chosen: Sequence[Chosen]) -> str:
         # The link is always shown, and it is the owner's only way to reach the story;
         # it rides on the source name rather than filling the line with the address.
         if item.story.source:
-            block.append(f"منبع: {markdown_link(item.story.source, item.story.link)}")
+            link = markdown_link(item.story.source, item.story.link, fallback=LINK_FALLBACK)
+            block.append(f"منبع: {link}")
         else:
-            block.append(markdown_link(LINK_FALLBACK, item.story.link))
+            block.append(markdown_link("", item.story.link, fallback=LINK_FALLBACK))
         blocks.append("\n".join(block))
     return "\n\n".join(blocks)
 
@@ -229,7 +219,7 @@ def raw_text(stories: Sequence[Story], error: str) -> str:
         # One line per story, and the headline itself carries the address: the
         # fallback exists to show the English text, not to spell out a URL.
         label = f"{story.title} — {story.source}" if story.source else story.title
-        lines.append(markdown_link(label, story.link))
+        lines.append(markdown_link(label, story.link, fallback=LINK_FALLBACK))
     if lines:
         lines.append("")
     code = f" ({error})" if error else ""

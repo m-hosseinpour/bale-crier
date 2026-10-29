@@ -408,7 +408,8 @@ would be a message about something that is not news:
 **One bulletin per run, not one per page** (owner's choice, 2026-10-21). The pages
 are checked together and a run rarely finds more than one, so the message lists
 whatever changed — oldest first, so no page can wait behind one that changed
-after it, each with its address, how long ago the change was seen, and the
+after it, each with its title as a Markdown link over the address, how long ago the
+change was seen (a page with no title shows «صفحه»), and the
 changed lines from
 `GET /api/v1/watch/<uuid>/difference/previous/latest?changesOnly=true&no_markup=true`,
 which is the API's own per-snapshot diff. The API's segment placemarkers become
