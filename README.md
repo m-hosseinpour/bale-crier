@@ -59,7 +59,7 @@ no network, so it is always registered. The changedetection watcher needs its AP
 one it is not registered at all. The digest, like the note producer, needs an LLM key; without one
 `--only news` says so in Persian and sends nothing.
 
-The note producer is the daily run's own work, and is registered only when an LLM key exists. With
+The note producer is the note run's own work, and is registered only when an LLM key exists. With
 no key, or with no `lists/` directory, the run says so in Persian on stderr rather than passing the
 gap off as a quiet day.
 
@@ -71,7 +71,7 @@ uv run pytest
 
 ## The notes
 
-The daily run sends one note from the owner's own lists. A list is one Markdown file in `lists/`
+The note run sends one note from the owner's own lists. A list is one Markdown file in `lists/`
 (gitignored; `lists.example/` shows the format), and a note is a `## id` heading plus the body under
 it:
 
@@ -275,7 +275,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
 ```
 
-There are five timers. `bale-crier.timer` runs the daily bulletins (everything but the credit
+There are five timers. `bale-crier.timer` runs the note bulletins (everything but the credit
 watcher, the disk watcher, the changedetection watcher and the news digest); `bale-crier-credit.timer`
 runs the credit check hourly with `--only credit`, `bale-crier-disk.timer` runs the disk check hourly
 with `--only disk`, `bale-crier-changedetection.timer` runs the changedetection check every three

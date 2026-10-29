@@ -111,7 +111,7 @@ def test_build_producers_has_the_smoke_producer(tmp_path):
     assert [producer.name for producer in producers] == ["smoke"]
 
 
-def test_the_credit_watcher_is_left_out_of_the_daily_set(tmp_path):
+def test_the_credit_watcher_is_left_out_of_the_note_run(tmp_path):
     producers = build_producers(settings(avalai_api_key="key", smoke=True), memory=memory(tmp_path))
 
     assert [producer.name for producer in producers] == ["smoke"]
@@ -319,7 +319,7 @@ def test_a_failed_expiry_notice_repeats_next_run_instead_of_being_lost(tmp_path,
     assert quiet_calls == []
 
 
-def test_the_disk_watcher_is_left_out_of_the_daily_set(tmp_path):
+def test_the_disk_watcher_is_left_out_of_the_note_run(tmp_path):
     producers = build_producers(settings(), memory=memory(tmp_path))
 
     assert [producer.name for producer in producers] == []
@@ -331,7 +331,7 @@ def test_only_disk_selects_the_watcher_alone(tmp_path):
     assert [producer.name for producer in producers] == ["disk"]
 
 
-def test_the_daily_run_leaves_the_disk_watcher_out(tmp_path):
+def test_the_note_run_leaves_the_disk_watcher_out(tmp_path):
     producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
 
     assert [producer.name for producer in producers] == ["note"]
@@ -385,7 +385,7 @@ def test_build_producers_includes_the_note_producer_when_a_key_is_set(tmp_path):
     assert [producer.name for producer in producers] == ["note"]
 
 
-def test_the_daily_run_leaves_the_credit_watcher_out_but_keeps_the_note(tmp_path):
+def test_the_note_run_leaves_the_credit_watcher_out_but_keeps_the_note(tmp_path):
     producers = build_producers(
         settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
         memory=memory(tmp_path),
@@ -420,7 +420,7 @@ def test_no_llm_key_means_no_note_producer_even_under_only(tmp_path):
     assert producers == []
 
 
-def test_the_daily_run_leaves_the_news_digest_out(tmp_path):
+def test_the_note_run_leaves_the_news_digest_out(tmp_path):
     producers = build_producers(settings(open_ai_api_key="llm-key"), memory=memory(tmp_path))
 
     names = [producer.name for producer in producers]
@@ -658,8 +658,8 @@ def test_no_key_means_no_changedetection_watcher_even_under_only(tmp_path):
     assert producers == []
 
 
-def test_the_daily_run_leaves_the_changedetection_watcher_out(tmp_path):
-    """It owns a timer of its own, so the daily run must not touch its watermarks."""
+def test_the_note_run_leaves_the_changedetection_watcher_out(tmp_path):
+    """It owns a timer of its own, so the note run must not touch its watermarks."""
     producers = build_producers(
         settings(changedetection_api_key="cd-key", open_ai_api_key="llm-key"), memory=memory(tmp_path)
     )

@@ -149,7 +149,7 @@ def test_a_failed_send_does_not_move_the_cycle_on():
     assert [bulletin.note_id for bulletin in bulletins] == ["reading-1"]
 
 
-def test_the_producer_is_part_of_the_daily_run():
+def test_the_producer_is_part_of_the_note_run():
     producer = NoteProducer(settings(), complete=stub_llm()[0])
 
     assert producer.name == "note"

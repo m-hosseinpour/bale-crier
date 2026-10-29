@@ -5,7 +5,7 @@ nothing else. This file holds one JSON object per producer name; its contents ar
 the producer's own business, and the store only loads, hands out and saves it.
 
 A run saves only the names it actually changed, merged into whatever is on disk at
-that moment. That is what stops the daily run — which registers no credit watcher
+that moment. That is what stops the ordinary run — which registers no credit watcher
 but shares this file — from writing back the copy it loaded and undoing a latch the
 hourly run re-armed in between, which would silently swallow the next crossing.
 

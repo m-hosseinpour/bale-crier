@@ -6,7 +6,7 @@
 ; The timer is what schedules this oneshot; this unit is deliberately static and has no
 ; [Install] section, so enabling the service alone does nothing.
 ;
-; --only credit is what keeps the two timers from racing over one latch: the daily unit
+; --only credit is what keeps the two timers from racing over one latch: the note unit
 ; runs everything else, and this one runs the watcher alone.
 ;
 ; WorkingDirectory matters: the default watchers_state_path and history_path are relative,

@@ -14,7 +14,7 @@ lists (reading them, choosing a note, rewording it), the news digest (the Google
 filter and the seen set, the model's selection), the disk watcher (free space below a threshold,
 hourly, with a latch and a daily reminder), and the changedetection watcher (the pages
 changedetection.io watches, every three hours, one message naming what changed). All five timers are
-enabled and scheduled. The daily one sends one note per run from `lists/`.
+enabled and scheduled. The note timer sends one note per run from `lists/`.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must

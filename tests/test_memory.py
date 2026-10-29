@@ -123,7 +123,7 @@ def test_a_save_with_nothing_changed_does_not_touch_the_file(tmp_path):
 
 
 def test_a_run_that_changes_nothing_leaves_another_runs_write_alone(tmp_path):
-    """The daily run shares this file but owns no credit watcher, so it must not
+    """The note run shares this file but owns no credit watcher, so it must not
     write back the latch it loaded: a re-arm the hourly run recorded in between
     would be undone, and the next crossing swallowed."""
     path = tmp_path / "watchers.json"
@@ -131,12 +131,12 @@ def test_a_run_that_changes_nothing_leaves_another_runs_write_alone(tmp_path):
     seed.set("credit", {"armed": False})
     seed.save()
 
-    daily = WatcherMemory.load(path)
+    note = WatcherMemory.load(path)
     hourly = WatcherMemory.load(path)
     hourly.set("credit", {"armed": True})
     hourly.save()
 
-    daily.save()
+    note.save()
 
     assert WatcherMemory.load(path).get("credit") == {"armed": True}
 

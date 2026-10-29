@@ -1,4 +1,4 @@
-"""News: the Google News feed, its stories, and the daily digest.
+"""News: the Google News feed, its stories, and the digest.
 
 Keep this a bare marker: ``config`` imports ``DEFAULT_FEED_URL`` from
 ``news.feed``, so a re-export here (``from .producer import NewsProducer``, say)

@@ -7,7 +7,7 @@
 ; [Install] section, so enabling the service alone does nothing.
 ;
 ; --only changedetection is what keeps the timers from racing over the watermarks: the
-; daily unit runs everything else, and this one runs the watcher alone.
+; note unit runs everything else, and this one runs the watcher alone.
 ;
 ; WorkingDirectory matters: the default watchers_state_path and history_path are relative,
 ; and a run started elsewhere would keep its watermarks in the wrong place. It is also where

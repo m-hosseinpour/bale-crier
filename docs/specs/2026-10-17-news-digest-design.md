@@ -6,9 +6,9 @@ owner's lists; it points here for this subsystem.
 
 ## What it is
 
-One message a day carrying a handful of AI-news stories: drawn from a Google News query,
+One message per run carrying a handful of AI-news stories: drawn from a Google News query,
 selected and written in Persian by the LLM. The owner asked for it on 2026-10-17 — the news he
-wants is AI trends, daily.
+wants is AI trends; it now runs three times a day (09:00, 15:00 and 21:00).
 
 It is a **producer**, like the credit watcher and the note producer, so the run loop, the Bale
 sender and the history are untouched.
@@ -151,7 +151,7 @@ a story that is not sent today has fallen out of the feed by tomorrow anyway.
 
 Its own timer, the credit watcher's shape: `bale-crier-news.service` — a `Type=oneshot` user
 service running `--only news` — and `bale-crier-news.timer`, three times a day (09:00, 15:00
-and 21:00, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the daily note run leaves it out and
+and 21:00, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the note run leaves it out and
 the two cannot race over one seen set.
 
 ## Configuration

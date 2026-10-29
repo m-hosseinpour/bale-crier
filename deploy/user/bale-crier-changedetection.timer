@@ -16,7 +16,7 @@
 ; owner nothing sooner. If changedetection's phases drift over the months, re-align them
 ; by forcing a recheck of every watch at the top of the hour.
 ;
-; The daily bale-crier.timer does not run this watcher — it owns this timer — so the two
+; bale-crier.timer does not run this watcher — it owns this timer — so the two
 ; timers cannot race over the watermarks.
 
 [Unit]

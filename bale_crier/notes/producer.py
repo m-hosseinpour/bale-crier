@@ -18,8 +18,8 @@ from .reword import PREVIOUS_LIMIT, reword
 
 class NoteProducer:
     name = "note"
-    # The notes are the daily run's own work; only a producer that owns a timer of
-    # its own (the credit watcher) is left out of that run.
+    # The notes are the ordinary run's own work; only a producer that owns a timer of
+    # its own (the three watchers and the news digest) is left out of that run.
     own_timer = False
 
     def __init__(self, settings: Settings, *, complete: Llm = complete) -> None:

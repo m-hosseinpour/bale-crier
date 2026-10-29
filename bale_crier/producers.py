@@ -13,7 +13,7 @@ from .models import Bulletin
 
 class Producer(Protocol):
     name: str
-    # A producer that runs on a timer of its own sets this, and the daily run
+    # A producer that runs on a timer of its own sets this, and the ordinary run
     # leaves it out — two timers must not race over one latch.
     own_timer: bool = False
 

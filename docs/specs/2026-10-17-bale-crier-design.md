@@ -108,11 +108,11 @@ bale_crier/
   watchers/      one module per watcher: avalai_credit.py, disk.py, changedetection.py
   notes/         reading the lists, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
-deploy/user/bale-crier.service + .timer          the daily bulletins
+deploy/user/bale-crier.service + .timer          the note bulletins
 deploy/user/bale-crier-credit.service + .timer   the hourly credit check
 deploy/user/bale-crier-disk.service + .timer     the hourly disk check
 deploy/user/bale-crier-changedetection.service + .timer  the three-hourly changedetection check
-deploy/user/bale-crier-news.service + .timer     the three-times-daily news digest
+deploy/user/bale-crier-news.service + .timer     the news digest, three times a day
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
 data/history.jsonl
@@ -233,7 +233,7 @@ watcher, the disk watcher, the
 changedetection watcher and the news digest each have a timer of their own, so
 they are not part of those runs.
 
-There are therefore five timers: `bale-crier.timer` for the daily bulletins,
+There are therefore five timers: `bale-crier.timer` for the note bulletins,
 `bale-crier-credit.timer`, hourly, which runs the same program narrowed with
 `--only credit`, `bale-crier-disk.timer`, hourly, which runs it with `--only disk`,
 `bale-crier-changedetection.timer`, every three hours, which runs it with
@@ -334,7 +334,7 @@ it.
 **It runs hourly, on its own timer.** A threshold crossed at 09:00 should not
 wait for the afternoon. Checking often costs nothing, because the latch — not the
 check — is what keeps a repeated look from becoming a repeated message. A
-producer that owns a timer of its own says so (`own_timer`), and the daily run
+producer that owns a timer of its own says so (`own_timer`), and the ordinary run
 leaves it out so the two timers cannot race over the same latch.
 
 ## The disk watcher
@@ -366,7 +366,7 @@ still speaks once the reading works again. The state lives in the watcher memory
 under the name `disk`, with `armed` and `last_alert`.
 
 It runs hourly on `bale-crier-disk.timer` with `--only disk`, for the same reason
-the credit watcher does: a producer that owns a timer keeps the daily run from
+the credit watcher does: a producer that owns a timer keeps the ordinary run from
 racing over its latch.
 
 ## The changedetection watcher
@@ -492,7 +492,7 @@ send is verified by hand, once per milestone.
 
 - Which other watchers the owner wants, beyond AvalAI credit, free disk space and
   the pages changedetection.io watches.
-- The daily times are 08:00 and 20:00 — twice a day, as the owner chose on
+- The note times are 08:00 and 20:00 — twice a day, as the owner chose on
   2026-10-27, down from the three-times default; the hourly credit check needs no
   confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project

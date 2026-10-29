@@ -32,7 +32,7 @@ from .select import (
 
 class NewsProducer:
     name = "news"
-    # The digest runs on its own timer, so the daily note run leaves it out and
+    # The digest runs on its own timer, so the note run leaves it out and
     # the two cannot race over one seen set.
     own_timer = True
 
