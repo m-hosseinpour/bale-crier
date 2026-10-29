@@ -9,12 +9,14 @@ from bale_crier.news.select import (
     DEFAULT_BLOCKLIST,
     HEADER,
     SEEN_LIMIT,
+    TEXT_CHARS,
     Chosen,
     blocked,
     blocklist_words,
     build_messages,
     digest_text,
     feed_failure_text,
+    grouped,
     newest_first,
     parse_answer,
     raw_text,
@@ -337,3 +339,85 @@ def test_no_message_text_advises_a_purchase():
     for blob in blobs:
         for word in FORBIDDEN_ADVICE:
             assert word not in blob
+
+
+def chosen(count: int, *, link: str = "https://x.test/1") -> list[Chosen]:
+    return [
+        Chosen(line=f"متن {index}", story=story(f"g{index}", link=f"{link}?{index}"))
+        for index in range(count)
+    ]
+
+
+def test_grouped_splits_at_the_batch_size_and_numbers_each_message_from_one():
+    messages = grouped(chosen(7), batch_size=5, render=digest_text)
+
+    assert len(messages) == 2
+    first, second = messages
+    assert "۱. متن 0" in first and "۵. متن 4" in first
+    assert "۶." not in first
+    # The second message is read on its own, so its numbering starts again.
+    assert "۱. متن 5" in second and "۲. متن 6" in second
+    assert HEADER in second
+
+
+def test_grouped_keeps_the_stories_in_order_across_messages():
+    messages = grouped(chosen(6), batch_size=4, render=digest_text)
+
+    lines = [line for message in messages for line in message.splitlines() if ". " in line]
+    assert [line.split(". ", 1)[1] for line in lines] == [f"متن {index}" for index in range(6)]
+
+
+def test_grouped_closes_a_message_before_bale_s_refuses_it():
+    """Bale takes 4096 characters: a group of long links that would cross it goes out
+    as two messages instead of one refused send."""
+    long_link = "https://x.test/" + "a" * 1500
+    items = chosen(4, link=long_link)
+
+    assert len(digest_text(items)) > TEXT_CHARS
+
+    messages = grouped(items, batch_size=5, render=digest_text)
+
+    assert len(messages) == 2
+    assert all(len(message) <= TEXT_CHARS for message in messages)
+    assert "متن 0" in messages[0] and "متن 1" in messages[0]
+    assert "متن 2" not in messages[0]
+    assert "متن 2" in messages[1] and "متن 3" in messages[1]
+    assert "۱. متن 2" in messages[1]
+
+
+def test_an_item_that_alone_crosses_the_limit_ships_alone_and_uncut():
+    """The link is the owner's only way to the story: cutting it would leave a dead
+    address, so the one item goes out as it is rather than being truncated."""
+    huge = chosen(1, link="https://x.test/" + "a" * (TEXT_CHARS + 100))
+    assert len(digest_text(huge)) > TEXT_CHARS
+
+    messages = grouped(huge, batch_size=5, render=digest_text)
+
+    assert messages == [digest_text(huge)]
+
+
+def test_an_oversized_item_does_not_take_its_neighbours_with_it():
+    items = chosen(4)
+    items[0] = Chosen(
+        line="متن 0", story=story("g0", link="https://x.test/" + "a" * (TEXT_CHARS + 100))
+    )
+
+    messages = grouped(items, batch_size=5, render=digest_text)
+
+    assert len(messages) == 2
+    assert "متن 0" in messages[0] and "متن 1" not in messages[0]
+    assert "متن 1" in messages[1] and "متن 3" in messages[1]
+
+
+def test_grouped_of_nothing_is_no_message():
+    assert grouped([], batch_size=5, render=digest_text) == []
+
+
+def test_grouped_renders_the_fallback_with_its_code_in_every_message():
+    items = [story(f"g{index}", title=f"Headline {index}") for index in range(6)]
+
+    messages = grouped(items, batch_size=5, render=lambda part: raw_text(part, "HTTP 500"))
+
+    assert len(messages) == 2
+    for message in messages:
+        assert "HTTP 500" in message

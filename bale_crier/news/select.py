@@ -20,9 +20,9 @@ escape is the one way to be sure it is there.
 """
 
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime, timezone
-from typing import NamedTuple
+from typing import NamedTuple, TypeVar
 
 from ..models import Story
 from ..persian import digits
@@ -57,6 +57,12 @@ DEFAULT_BLOCKLIST: tuple[str, ...] = (
 )
 SEEN_LIMIT = 500
 CANDIDATE_LIMIT = 60
+
+# Bale's sendMessage accepts 1 to 4096 characters, and ten stories with their
+# Google News links went past it: the API refused the whole message and the owner was
+# told nothing. A small margin is kept under the documented limit because the count
+# is the server's, not this one's.
+TEXT_CHARS = 4000
 
 HEADER = "چند خبر تازه از دنیای هوش مصنوعی:"
 
@@ -220,4 +226,40 @@ def feed_failure_text(error: str) -> str:
     """
     code = f" ({error})" if error else ""
     return f"{FEED_FAILED}{code}."
+
+
+T = TypeVar("T")
+
+
+def grouped(
+    items: Sequence[T], *, batch_size: int, render: Callable[[Sequence[T]], str]
+) -> list[str]:
+    """The rendered messages: at most ``batch_size`` items each, each under Bale's limit.
+
+    Two rules, two owners. ``batch_size`` is the owner's — he reads the digest in
+    groups of that many stories. ``TEXT_CHARS`` is the API's, and it refuses the
+    whole message rather than cutting it, so a group closes early when the next
+    item would cross it; the group's numbering restarts, because each message is
+    read on its own.
+
+    An item that alone crosses the limit still ships alone, uncut: the link is the
+    owner's only way to the story, and a cut link is a dead one. Against the real
+    feed this branch cannot fire — its links run 150 to 650 characters, and one item
+    would need four thousand — so it is a guard, not a path the digest takes. If it
+    ever did fire, that message would be refused and the history would record it,
+    rather than the story disappearing quietly.
+    """
+    messages: list[str] = []
+    current: list[T] = []
+    for item in items:
+        candidate = current + [item]
+        full = len(candidate) > batch_size
+        if current and (full or len(render(candidate)) > TEXT_CHARS):
+            messages.append(render(current))
+            current = [item]
+        else:
+            current = candidate
+    if current:
+        messages.append(render(current))
+    return messages
 

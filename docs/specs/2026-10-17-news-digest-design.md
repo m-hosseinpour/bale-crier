@@ -6,8 +6,8 @@ owner's lists; it points here for this subsystem.
 
 ## What it is
 
-One message per run carrying a handful of AI-news stories: drawn from a Google News query,
-selected and written in Persian by the LLM. The owner asked for it on 2026-10-17 — the news he
+One message per group of `CRIER_NEWS_BATCH_SIZE` stories (default five), drawn from a Google News
+query, selected and written in Persian by the LLM. The owner asked for it on 2026-10-17 — the news he
 wants is AI trends; it now runs three times a day (09:00, 15:00 and 21:00).
 
 It is a **producer**, like the credit watcher and the note producer, so the run loop, the Bale
@@ -70,8 +70,8 @@ Measured on 2026-10-17, so a later reader does not have to probe again:
 6. Hand the survivors, newest first, to the LLM, capped at `CANDIDATE_LIMIT` (60). Each survivor is
    given to it as a number, its title and its source. It chooses the most important and writes one
    short Persian line for each.
-7. Render one bulletin: a short Persian header, then each story as its Persian line, its source
-   name and its Google News link.
+7. Render the bulletins: one per group of `CRIER_NEWS_BATCH_SIZE` stories, each a short Persian
+   header, then its stories as their Persian lines, source names and Google News links.
 8. Add the chosen stories' guids to the seen set.
 
 ## The hard filter and the model
@@ -90,8 +90,9 @@ in phone, gaming and driver releases. Matching is whole-word, so the plural form
 used are listed too. A domain blocklist was
 considered and dropped: the owner chose words only.
 
-**The model** then reads the survivors and returns the digest. One call per bulletin, the project's
-rule. It is told to keep each headline's meaning with no claim of its own added, to write fresh
+**The model** then reads the survivors and returns the digest in one call, which the code renders as
+several bulletins (one per group). One call per run, not per message: the prompt is written for the
+whole digest, and a call per group would ask the model to rank the day's news again and again. It is told to keep each headline's meaning with no claim of its own added, to write fresh
 Persian with a correct U+200C in every half-space word, to put the most important first, to choose
 at most `CRIER_NEWS_MAX_ITEMS` (default 10), and to carry one story per event — which is the only
 place the four outlets carrying one DeepSeek release are collapsed, since the seen set works by guid
@@ -119,6 +120,29 @@ truncates it to `CRIER_NEWS_MAX_ITEMS` however many lines the model returned.
 Numbered with Persian digits, one blank line between stories. The header is one fixed Persian
 sentence, a constant: no date and no count (owner's ruling, 2026-10-17).
 
+### The groups
+
+The owner reads the digest in groups of five stories (2026-10-29), so the producer returns one
+bulletin per group and each message restarts its numbering at ۱ with the same header — a message is
+read on its own, and a number that runs ۶…۱۰ in it would mean nothing.
+
+The split has a second job. Bale's `sendMessage` takes 1 to 4096 characters and refuses the whole
+message beyond that, and ten stories with their Google News links come to 4300 to 5100: five digests
+between 22 and 29 October 2026 were refused at the API, each recorded as `ok: false` and never seen
+in the chat, while every digest that landed was under 4000 characters. The history is the evidence;
+the API's own error text is not recorded anywhere, which is why the length was the only clue.
+
+So a group also closes early when the next story would cross `TEXT_CHARS` (4000, a little under the
+documented limit), and the remainder becomes the next message. A story that alone crosses the limit
+still ships alone and uncut: the link is the owner's only way to it, and a cut link is a dead one.
+With this feed it cannot happen — its links run 150 to 650 characters, so one story would need a
+title and link of four thousand — and a message it produced would be refused and recorded rather
+than a story dropped quietly. Nothing is dropped by the split, only moved.
+
+The seen set is unchanged by the grouping: every story any group carries is remembered, and the
+memory is still saved only when every send landed. A group that fails therefore repeats next run —
+and the groups that landed repeat with it, which is the existing rule's price, not a new one.
+
 ## Failure behaviour
 
 The owner's ruling of 2026-10-17. The second row is a deliberate exception to the project's rule
@@ -127,7 +151,7 @@ that every string reaching the owner is Persian.
 | what happened | what goes to Bale |
 | --- | --- |
 | the feed could not be read | one short Persian bulletin saying so, naming the short error code |
-| the model failed, or its answer did not parse | the raw headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors, in English, each with its source and link, plus one Persian line saying the rewording did not happen and the call's short error code |
+| the model failed, or its answer did not parse | the raw headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors, in English, each with its source and link, split into the same groups, each message ending with one Persian line saying the rewording did not happen and the call's short error code |
 | the feed was read but no story survived | nothing |
 
 A failed read is never announced as "there was no news": *"I cannot tell" stays "I cannot tell"*,
@@ -142,10 +166,11 @@ credit watcher's latch already uses. It holds the guids of the stories the diges
 last, capped at `SEEN_LIMIT` (500) so it cannot grow without bound.
 
 It is deliberately not the history: the history records the text the owner read, and this is
-bookkeeping about the feed. It is written by `produce`, and `run_once` saves the memory after the
-sends — so a crash between the two costs a re-send, the safe direction, and a failed Bale send still
-counts the story as seen. That last one costs nothing in practice: the feed's `when:1d` window means
-a story that is not sent today has fallen out of the feed by tomorrow anyway.
+bookkeeping about the feed. It is written by `produce`, and `run_once` saves the memory only when
+every send landed — so a crash between the two, or one refused group, costs a re-send of the whole
+digest next run, the safe direction. The re-send is noisy but never loses a story; the feed's
+`when:1d` window means a story dropped from the feed by tomorrow is one the owner is no longer
+waiting for.
 
 ## Scheduling
 
@@ -160,6 +185,7 @@ the two cannot race over one seen set.
 | --- | --- |
 | `CRIER_NEWS_FEED_URL` | the Google News RSS URL (default: the owner's query) |
 | `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
+| `CRIER_NEWS_BATCH_SIZE` | the most stories in one message (default 5, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
 The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` — or `CRIER_AVALAI_API_KEY`, which it inherits

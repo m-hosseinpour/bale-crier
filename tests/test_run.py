@@ -462,6 +462,49 @@ def test_a_news_run_sends_one_digest_and_records_what_went(tmp_path, monkeypatch
     assert records[0].text == calls[0]["text"]
 
 
+def news_feed_xml(count: int) -> bytes:
+    items = "".join(
+        f"""
+<item>
+  <title>Headline {index} - The Outlet</title>
+  <link>https://news.google.com/rss/articles/{index}</link>
+  <guid isPermaLink="false">guid-{index}</guid>
+  <pubDate>Sat, 17 Oct 2026 0{index}:00:00 GMT</pubDate>
+  <source url="https://the-outlet.test/">The Outlet</source>
+</item>"""
+        for index in range(1, count + 1)
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>'
+        + items
+        + "</channel></rss>"
+    ).encode()
+
+
+def test_a_digest_goes_out_in_groups_and_each_message_gets_its_own_record(tmp_path, monkeypatch):
+    """Six stories at the default batch of five are two messages: two sends, two history
+    lines. A refused second message must also keep the seen set unsaved, so the whole
+    digest repeats next run rather than half of it going missing."""
+    stub_feed(monkeypatch, body=news_feed_xml(6))
+    stub_llm(monkeypatch, text="\n".join(f"{index}|متن {index}" for index in range(1, 7)))
+    results = [SendResult(ok=True), SendResult(ok=False, error="message is too long")]
+    calls = []
+
+    def send(text, **kwargs):
+        calls.append(text)
+        return results[len(calls) - 1]
+
+    report = run_once(settings(open_ai_api_key="key"), now=NOW, send=send, only=["news"])
+
+    assert len(calls) == 2
+    assert report.sent == 1
+    assert report.failed == 1
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert [record.ok for record in records] == [True, False]
+    assert [record.text for record in records] == calls
+    assert not (tmp_path / "data" / "watchers.json").exists()
+
+
 def test_a_note_run_sends_one_note_and_records_what_went(tmp_path, monkeypatch):
     lists = tmp_path / "lists"
     lists.mkdir()

@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     # Bounded below: a cap of zero asks the model for nothing while still spending
     # a call, and sends a digest with a header and no story under it.
     news_max_items: int = Field(default=10, ge=1)
+    # Stories per message. Bale's sendMessage takes 1 to 4096 characters, and ten
+    # stories with their Google News links passed that in one message: the split is
+    # what keeps the digest inside the limit the owner reads it under.
+    news_batch_size: int = Field(default=5, ge=1)
     news_blocklist: str = ""
 
     @model_validator(mode="after")

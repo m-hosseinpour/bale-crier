@@ -1,4 +1,4 @@
-"""The news digest: the feed, filtered, reworded by the LLM, one bulletin.
+"""The news digest: the feed, filtered, reworded by the LLM, in groups of bulletins.
 
 The producer orchestrates and the modules around it own their parts: ``feed``
 fetches and parses, ``select`` filters, prompts, parses the answer and words every
@@ -22,6 +22,7 @@ from .select import (
     build_messages,
     digest_text,
     feed_failure_text,
+    grouped,
     newest_first,
     parse_answer,
     raw_text,
@@ -50,10 +51,11 @@ class NewsProducer:
         self._read = read
 
     def produce(self, now: datetime) -> list[Bulletin]:
-        """Zero or one bulletin. ``now`` is the protocol's, not this producer's.
+        """One bulletin per group: the chosen stories split by ``news_batch_size``.
 
-        The seen set is keyed by guid, so nothing here depends on the clock; the
-        parameter stays because every producer takes it.
+        ``now`` is the protocol's, not this producer's. The seen set is keyed by
+        guid, so nothing here depends on the clock; the parameter stays because
+        every producer takes it.
         """
         read = self._read(url=self._settings.news_feed_url, timeout=self._settings.http_timeout)
         if read.stories is None:
@@ -86,16 +88,20 @@ class NewsProducer:
         if llm_read.text is not None:
             chosen = parse_answer(llm_read.text, candidates, max_items=max_items)
 
+        batch = self._settings.news_batch_size
         if chosen is not None:
             carried = [item.story for item in chosen]
-            text = digest_text(chosen)
+            texts = grouped(chosen, batch_size=batch, render=digest_text)
         else:
             # The model's failure is the owner's English fallback: the newest
             # survivors go out as they came, capped here because the cap is the
             # settings' business and `raw_text` renders only what it is given.
             carried = candidates[:max_items]
             error = llm_read.error if llm_read.text is None else "unparsable answer"
-            text = raw_text(carried, error)
+            texts = grouped(carried, batch_size=batch, render=lambda part: raw_text(part, error))
 
+        # Every story the digest carried is marked seen, whichever group carried it:
+        # the memory is a fact about the digest. `run_once` still saves it only when
+        # every send landed, so a group that failed repeats the whole digest.
         self._memory.set(self.name, {"seen": remember(seen, [story.guid for story in carried])})
-        return [Bulletin(kind=self.name, text=text)]
+        return [Bulletin(kind=self.name, text=text) for text in texts]

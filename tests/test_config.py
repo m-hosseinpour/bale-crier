@@ -218,6 +218,7 @@ def test_the_news_settings_default_to_the_owners_query(monkeypatch):
     settings = load_settings()
 
     assert settings.news_max_items == 10
+    assert settings.news_batch_size == 5
     assert settings.news_feed_url == DEFAULT_FEED_URL
     assert settings.news_blocklist == ""
 
@@ -237,12 +238,14 @@ def test_the_news_settings_take_their_values_from_the_environment(monkeypatch):
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
     monkeypatch.setenv("CRIER_NEWS_FEED_URL", "https://example.test/rss?q=x")
     monkeypatch.setenv("CRIER_NEWS_MAX_ITEMS", "3")
+    monkeypatch.setenv("CRIER_NEWS_BATCH_SIZE", "2")
     monkeypatch.setenv("CRIER_NEWS_BLOCKLIST", "ban, funding")
 
     settings = load_settings()
 
     assert settings.news_feed_url == "https://example.test/rss?q=x"
     assert settings.news_max_items == 3
+    assert settings.news_batch_size == 2
     assert settings.news_blocklist == "ban, funding"
 
 
@@ -256,6 +259,19 @@ def test_a_news_cap_below_one_is_refused(monkeypatch):
 
     message = str(caught.value)
     assert "CRIER_NEWS_MAX_ITEMS" in message
+    assert any("\u0600" <= char <= "\u06ff" for char in message)
+
+
+def test_a_news_batch_below_one_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_NEWS_BATCH_SIZE", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    message = str(caught.value)
+    assert "CRIER_NEWS_BATCH_SIZE" in message
     assert any("\u0600" <= char <= "\u06ff" for char in message)
 
 

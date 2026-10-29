@@ -207,7 +207,7 @@ the months, re-align them the same way and the half hour is honest again.
 
 ## The news digest
 
-The digest is one message a day carrying a handful of AI-news stories. It reads a Google News RSS
+The digest arrives as messages of at most five AI-news stories each. It reads a Google News RSS
 search — `CRIER_NEWS_FEED_URL`, whose default is the owner's query — and parses it into stories. It
 then drops what the owner does not want to read before the model ever sees it.
 
@@ -224,17 +224,26 @@ last and capped at 500 — deliberately separate from the history, which records
 What survives goes to the model newest first, capped at 60 candidates; it picks at most
 `CRIER_NEWS_MAX_ITEMS` (default 10) and writes one short Persian line for each, answering with
 indices the code maps back to the real title, source and link — so a model that invents a link is
-impossible rather than merely unlikely. The message is a fixed Persian header, then each story
-numbered with Persian digits as its Persian line, then `منبع: <source> — <link>`. The link is a
+impossible rather than merely unlikely. Each message is a fixed Persian header, then its stories
+numbered with Persian digits as their Persian line, then `منبع: <source> — <link>`. The link is a
 Google News redirect, never the publisher's URL; the server never resolves it — the owner's browser
 does when he taps it.
+
+**The stories go out in groups of `CRIER_NEWS_BATCH_SIZE`** (default 5), each message restarting its
+numbering at ۱, so ten stories arrive as two messages of five. The split is not only the owner's
+preference: Bale's `sendMessage` takes 1 to 4096 characters and refuses the whole message beyond it,
+and ten stories with their Google News links reach 4300 to 5100 characters — which is how five
+digests were lost between 22 and 29 October 2026, each one recorded in `history.jsonl` as `ok: false`
+and never seen in the chat, while every send that landed was under 4000. A group that would cross
+4000 characters therefore closes early and the rest goes in the next message; only a story that alone
+crosses the limit ships uncut, because cutting it would break the link.
 
 Two failures speak, and a quiet day does not. A feed that cannot be read sends one short Persian
 line naming the short error code, and never claims there was no news — "I cannot tell" stays
 "I cannot tell". A model that fails, or an answer that does not parse, sends the raw English
-headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors with their sources and links, plus one
-Persian line naming the failure and the call's code. A feed that was read with nothing left sends
-nothing: a day without news is not a failure.
+headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors with their sources and links, in the same
+groups, each message carrying the Persian line that names the failure and the call's code. A feed
+that was read with nothing left sends nothing: a day without news is not a failure.
 
 The digest owns a timer of its own, `bale-crier-news.timer`, three times a day at 09:00, 15:00 and 21:00, so the
 note run leaves it out and the two cannot race over one seen set. `--only news` runs it alone.

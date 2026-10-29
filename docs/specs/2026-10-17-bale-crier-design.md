@@ -262,6 +262,7 @@ There are therefore five timers: `bale-crier.timer` for the note bulletins,
 | `CRIER_DISK_REMINDER_HOURS` | how often a still-low disk may remind the owner (default 24) |
 | `CRIER_NEWS_FEED_URL` | the news digest's Google News RSS URL (default: the owner's query) |
 | `CRIER_NEWS_MAX_ITEMS` | the most stories in one digest (default 10, at least 1) |
+| `CRIER_NEWS_BATCH_SIZE` | the most stories in one message (default 5, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 | `CRIER_CHANGEDETECTION_URL` | where changedetection.io listens (default `http://127.0.0.1:5005`, the loopback) |
 | `CRIER_CHANGEDETECTION_API_KEY` | the key from changedetection's own settings; without it the watcher is not registered |

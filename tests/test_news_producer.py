@@ -295,3 +295,57 @@ def test_the_memory_blob_is_the_one_the_store_writes(tmp_path):
 
     blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
     assert blob["news"] == {"seen": ["g1"]}
+
+
+def test_the_digest_goes_out_in_groups_of_five(tmp_path):
+    stories = [story(f"g{index}", title=f"Headline {index}") for index in range(8)]
+    read, _ = stub_read(stories)
+    complete, _ = stub_llm(text="\n".join(f"{index}|متن {index}" for index in range(1, 9)))
+
+    bulletins = NewsProducer(settings(), memory(tmp_path), read=read, complete=complete).produce(NOW)
+
+    assert len(bulletins) == 2
+    assert all(bulletin.kind == "news" for bulletin in bulletins)
+    assert "۵. " in bulletins[0].text and "۶. " not in bulletins[0].text
+    assert "۱. " in bulletins[1].text and "۴. " not in bulletins[1].text
+
+
+def test_the_batch_size_is_a_setting(tmp_path):
+    stories = [story(f"g{index}", title=f"Headline {index}") for index in range(2)]
+    read, _ = stub_read(stories)
+    complete, _ = stub_llm(text="1|متن یک\n2|متن دو")
+
+    bulletins = NewsProducer(
+        settings(news_batch_size=1), memory(tmp_path), read=read, complete=complete
+    ).produce(NOW)
+
+    assert len(bulletins) == 2
+    assert "متن یک" in bulletins[0].text
+    assert "متن دو" in bulletins[1].text
+
+
+def test_every_story_the_groups_carry_is_marked_seen(tmp_path):
+    stories = [story(f"g{index}", title=f"Headline {index}") for index in range(6)]
+    read, _ = stub_read(stories)
+    complete, _ = stub_llm(text="\n".join(f"{index}|متن {index}" for index in range(1, 7)))
+    mem = memory(tmp_path)
+
+    bulletins = NewsProducer(settings(), mem, read=read, complete=complete).produce(NOW)
+
+    assert len(bulletins) == 2
+    assert mem.get("news") == {"seen": [f"g{index}" for index in range(6)]}
+
+
+def test_the_fallback_goes_out_in_groups_too(tmp_path):
+    stories = [story(f"g{index}", title=f"Headline {index}") for index in range(7)]
+    read, _ = stub_read(stories)
+    mem = memory(tmp_path)
+
+    bulletins = NewsProducer(
+        settings(), mem, read=read, complete=failing_llm("HTTP 500")
+    ).produce(NOW)
+
+    assert len(bulletins) == 2
+    assert all("HTTP 500" in bulletin.text for bulletin in bulletins)
+    assert "Headline 0" in bulletins[0].text
+    assert "Headline 6" in bulletins[1].text
