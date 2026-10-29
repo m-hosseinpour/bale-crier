@@ -131,8 +131,8 @@ that every string reaching the owner is Persian.
 | the feed was read but no story survived | nothing |
 
 A failed read is never announced as "there was no news": *"I cannot tell" stays "I cannot tell"*,
-the rule the credit watcher already follows. The digest runs twice a day, so a broken feed speaks at
-most twice a day and needs no throttle of its own — the window the credit watcher has exists because
+the rule the credit watcher already follows. The digest runs three times a day, so a broken feed speaks at
+most three times a day and needs no throttle of its own — the window the credit watcher has exists because
 that watcher runs hourly.
 
 ## The seen set
@@ -150,8 +150,8 @@ a story that is not sent today has fallen out of the feed by tomorrow anyway.
 ## Scheduling
 
 Its own timer, the credit watcher's shape: `bale-crier-news.service` — a `Type=oneshot` user
-service running `--only news` — and `bale-crier-news.timer`, twice a day (09:00 and 21:00, the
-owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the daily note run leaves it out and
+service running `--only news` — and `bale-crier-news.timer`, three times a day (09:00, 15:00
+and 21:00, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the daily note run leaves it out and
 the two cannot race over one seen set.
 
 ## Configuration
@@ -200,8 +200,8 @@ and an unparsable line, the rendered message, both failure bulletins, the produc
 
 ## Still open
 
-- The digest shipped once a day at 09:00; on 2026-10-29 the owner made it twice a day, at 09:00
-  and 21:00.
+- The digest shipped once a day at 09:00; on 2026-10-29 the owner made it three times a day, at
+  09:00, 15:00 and 21:00.
 - The query is the owner's to tighten. The default is the one given on 2026-10-17; the first digests
   will show whether the filter words need adding.
 - The feed is parsed with the standard library's `ElementTree`, which is not hardened against

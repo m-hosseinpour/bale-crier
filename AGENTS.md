@@ -3,7 +3,7 @@
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
 alerts about external state (AvalAI credit exhausted, and similar), notes drawn from his own
 lists, expanded by an LLM into a couple of Persian sentences (not one) and varied twice a day, and a
-digest of AI news twice a day, picked and written in Persian. Lessons come later.
+digest of AI news three times a day, picked and written in Persian. Lessons come later.
 
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.

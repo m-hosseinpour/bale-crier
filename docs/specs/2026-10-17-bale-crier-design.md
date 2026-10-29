@@ -112,7 +112,7 @@ deploy/user/bale-crier.service + .timer          the daily bulletins
 deploy/user/bale-crier-credit.service + .timer   the hourly credit check
 deploy/user/bale-crier-disk.service + .timer     the hourly disk check
 deploy/user/bale-crier-changedetection.service + .timer  the three-hourly changedetection check
-deploy/user/bale-crier-news.service + .timer     the twice-daily news digest
+deploy/user/bale-crier-news.service + .timer     the three-times-daily news digest
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
 data/history.jsonl
@@ -237,8 +237,8 @@ There are therefore five timers: `bale-crier.timer` for the daily bulletins,
 `bale-crier-credit.timer`, hourly, which runs the same program narrowed with
 `--only credit`, `bale-crier-disk.timer`, hourly, which runs it with `--only disk`,
 `bale-crier-changedetection.timer`, every three hours, which runs it with
-`--only changedetection`, and `bale-crier-news.timer`, twice a day at 09:00 and
-21:00, which runs it with
+`--only changedetection`, and `bale-crier-news.timer`, three times a day at
+09:00, 15:00 and 21:00, which runs it with
 `--only news` for the AI-news digest.
 
 ## Configuration
