@@ -1,4 +1,4 @@
-; bale-crier news digest — user-level systemd unit (one daily digest).
+; bale-crier news digest — user-level systemd unit (one digest per run).
 ;
 ; Install to ~/.config/systemd/user/, then:
 ;   systemctl --user daemon-reload && systemctl --user enable --now bale-crier-news.timer
@@ -6,7 +6,7 @@
 ; The timer is what schedules this oneshot; this unit is deliberately static and has no
 ; [Install] section, so enabling the service alone does nothing.
 ;
-; --only news is what keeps the timers from racing over one seen set: the daily unit
+; --only news is what keeps the timers from racing over one seen set: the main unit
 ; runs everything else, and this one runs the digest alone.
 ;
 ; WorkingDirectory matters: the default watchers_state_path and history_path are relative,

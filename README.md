@@ -3,7 +3,7 @@
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
 alerts about external state (AvalAI credit running out, the disk filling up, and similar), notes
 drawn from his own lists, expanded and varied by an LLM into a few Persian lines a few times a day,
-and a daily digest of AI news, picked and written in Persian.
+and an AI-news digest twice a day, picked and written in Persian.
 
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
@@ -52,7 +52,7 @@ It is how the path is proved after a deploy, and it is never registered by defau
 `--only NAME` narrows a run to one producer, and may be repeated. The credit, disk and
 changedetection watchers and the news digest each own a timer of their own, so the ordinary run
 leaves all four out; the watchers' timers run them alone with `--only credit`, `--only disk` and
-`--only changedetection`, and the daily news timer runs the digest alone with `--only news`. The
+`--only changedetection`, and the news timer runs the digest alone with `--only news`. The
 credit watcher is not registered at all unless `CRIER_AVALAI_API_KEY` is set — a run under
 `--only credit` without it says so in Persian and sends nothing. The disk watcher needs no key and
 no network, so it is always registered. The changedetection watcher needs its API key, and without
@@ -236,8 +236,8 @@ headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors with their sources and 
 Persian line naming the failure and the call's code. A feed that was read with nothing left sends
 nothing: a day without news is not a failure.
 
-The digest owns a timer of its own, `bale-crier-news.timer`, daily at 09:00, so the daily note run
-leaves it out and the two cannot race over one seen set. `--only news` runs it alone.
+The digest owns a timer of its own, `bale-crier-news.timer`, twice a day at 09:00 and 21:00, so the
+note run leaves it out and the two cannot race over one seen set. `--only news` runs it alone.
 
 ## Structure
 
@@ -279,8 +279,8 @@ There are five timers. `bale-crier.timer` runs the daily bulletins (everything b
 watcher, the disk watcher, the changedetection watcher and the news digest); `bale-crier-credit.timer`
 runs the credit check hourly with `--only credit`, `bale-crier-disk.timer` runs the disk check hourly
 with `--only disk`, `bale-crier-changedetection.timer` runs the changedetection check every three
-hours with `--only changedetection`, and `bale-crier-news.timer` runs the digest daily with
-`--only news`. Each owns a timer of its own so it cannot race over the daily run's latch, watermarks
+hours with `--only changedetection`, and `bale-crier-news.timer` runs the digest twice a day with
+`--only news`. Each owns a timer of its own so it cannot race over the note run's latch, watermarks
 or seen set. Enabling the credit watcher, the disk watcher, the changedetection watcher and the
 digest is not optional — without their timers nothing ever checks the credit, the disk or
 changedetection, and nothing sends the digest.
@@ -302,7 +302,7 @@ The times are literal `OnCalendar` lines in the unit files — 08:00 and 20:00 w
 randomized delay in `bale-crier.timer` (twice a day, one note per run); `hourly` with a two-minute
 spread in `bale-crier-credit.timer` and in `bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a
 two-minute spread in `bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in
-`bale-crier-news.timer`.
+`bale-crier-news.timer` (twice a day, 09:00 and 21:00, also with a ten-minute delay).
 systemd expands no environment variable in a unit file, so a schedule setting would silently never
 fire. To change a time, edit the unit, copy it again and run `systemctl --user daemon-reload`.
 
