@@ -66,6 +66,11 @@ TEXT_CHARS = 4000
 
 HEADER = "چند خبر تازه از دنیای هوش مصنوعی:"
 
+# Bale formats every message as Markdown, so a link can carry a label instead of
+# filling the message with a Google News address. The source name is the owner's
+# choice of label; this is what a story with no source shows instead.
+LINK_FALLBACK = "لینک خبر"
+
 SYSTEM_INSTRUCTION = (
     "تو از میان تیتر\u200cهای خبری انگلیسی، مهم\u200cترین\u200cها را انتخاب می\u200cکنی و برای هر یک "
     "یک جملهٔ کوتاه فارسی می\u200cنویسی. "
@@ -90,6 +95,18 @@ class Chosen(NamedTuple):
 
     line: str
     story: Story
+
+
+def markdown_link(label: str, url: str) -> str:
+    """The address as a Markdown link under ``label``, safe to paste into a message.
+
+    A ``]`` in the label would close it early and spill the rest of the line as text,
+    so brackets are dropped from the label — a source name is a name with or without
+    them. Parentheses in the address would end it the same way, and percent-encoding
+    those two characters leaves the same address, one a browser still opens.
+    """
+    clean = label.replace("[", "").replace("]", "").strip() or LINK_FALLBACK
+    return f"[{clean}]({url.replace('(', '%28').replace(')', '%29')})"
 
 
 def blocklist_words(raw: str) -> tuple[str, ...]:
@@ -191,12 +208,12 @@ def digest_text(chosen: Sequence[Chosen]) -> str:
     blocks = [HEADER]
     for index, item in enumerate(chosen, start=1):
         block = [f"{digits(index)}. {item.line}"]
-        # The link is always shown: it is the owner's only way to reach the story,
-        # so an item with no source name loses the label, never the address.
+        # The link is always shown, and it is the owner's only way to reach the story;
+        # it rides on the source name rather than filling the line with the address.
         if item.story.source:
-            block.append(f"منبع: {item.story.source} — {item.story.link}")
+            block.append(f"منبع: {markdown_link(item.story.source, item.story.link)}")
         else:
-            block.append(item.story.link)
+            block.append(markdown_link(LINK_FALLBACK, item.story.link))
         blocks.append("\n".join(block))
     return "\n\n".join(blocks)
 
@@ -209,9 +226,10 @@ def raw_text(stories: Sequence[Story], error: str) -> str:
     """
     lines: list[str] = []
     for story in stories:
-        source = f" — {story.source}" if story.source else ""
-        lines.append(f"{story.title}{source}")
-        lines.append(story.link)
+        # One line per story, and the headline itself carries the address: the
+        # fallback exists to show the English text, not to spell out a URL.
+        label = f"{story.title} — {story.source}" if story.source else story.title
+        lines.append(markdown_link(label, story.link))
     if lines:
         lines.append("")
     code = f" ({error})" if error else ""

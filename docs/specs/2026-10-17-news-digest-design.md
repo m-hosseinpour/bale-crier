@@ -112,13 +112,24 @@ truncates it to `CRIER_NEWS_MAX_ITEMS` however many lines the model returned.
 چند خبر تازه از دنیای هوش مصنوعی:
 
 ۱. <the model's Persian line>
-منبع: The Straits Times — https://news.google.com/rss/articles/…
+منبع: [The Straits Times](https://news.google.com/rss/articles/…)
 
 ۲. …
 ```
 
 Numbered with Persian digits, one blank line between stories. The header is one fixed Persian
 sentence, a constant: no date and no count (owner's ruling, 2026-10-17).
+
+The address is a Markdown link whose label is the source name (owner's choice, 2026-10-29): Bale
+formats every message as Markdown, with no `parse_mode` to ask for, so `[name](url)` renders as a
+tappable name and the owner never sees the three-hundred-character Google News redirect. A story
+with no source keeps the address and takes the label «لینک خبر». A `]` in the source name and a
+parenthesis in the address would both end the link early, so the label loses its brackets and the
+address has them percent-encoded — the same address a browser opens. The English fallback folds
+each headline and its source into the link label the same way, one line per story.
+
+Nothing about the character budget changes: the address is still in the text the API counts, so a
+link's markup only ever makes a group close a little sooner.
 
 ### The groups
 

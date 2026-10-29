@@ -272,8 +272,8 @@ def test_digest_text_renders_the_header_and_numbered_items():
     assert text.startswith(HEADER)
     assert "۱. متن نخست" in text
     assert "۲. متن دوم" in text
-    assert "منبع: The Straits Times — https://x.test/1" in text
-    assert "منبع: Outlet Two — https://x.test/2" in text
+    assert "منبع: [The Straits Times](https://x.test/1)" in text
+    assert "منبع: [Outlet Two](https://x.test/2)" in text
 
 
 def test_digest_text_separates_items_with_one_blank_line():
@@ -284,7 +284,7 @@ def test_digest_text_separates_items_with_one_blank_line():
 
     text = digest_text(chosen)
 
-    assert "منبع: S — https://x.test/1\n\n۲. دو" in text
+    assert "منبع: [S](https://x.test/1)\n\n۲. دو" in text
     assert "\n\n\n" not in text
 
 
@@ -293,8 +293,38 @@ def test_digest_text_keeps_the_link_when_the_source_is_empty():
 
     assert "متن" in text
     assert "منبع:" not in text
-    # The link is the owner's only way to the story, so it survives an empty source.
-    assert "https://x.test/1" in text
+    # The link is the owner's only way to the story, so it survives an empty source —
+    # with a label of its own rather than a bare address.
+    assert "[لینک خبر](https://x.test/1)" in text
+
+
+def test_a_link_rides_on_its_source_name_instead_of_the_address():
+    """The address is in the text — Bale counts it — but on screen it is the source
+    name that is tappable, so a three-hundred-character Google News link does not fill
+    the message."""
+    long_link = "https://news.google.com/rss/articles/" + "a" * 300
+    text = digest_text(
+        [Chosen(line="متن", story=story("a", source="The Straits Times", link=long_link))]
+    )
+
+    assert f"منبع: [The Straits Times]({long_link})" in text
+    assert "منبع: The Straits Times — " not in text
+
+
+def test_a_bracket_in_the_source_name_cannot_close_the_link_early():
+    text = digest_text(
+        [Chosen(line="متن", story=story("a", source="Daily [Removed] News", link="https://x.test/1"))]
+    )
+
+    assert "[Daily Removed News](https://x.test/1)" in text
+
+
+def test_a_parenthesis_in_the_address_is_encoded_not_left_to_close_the_link():
+    text = digest_text(
+        [Chosen(line="متن", story=story("a", source="S", link="https://x.test/a_(b)"))]
+    )
+
+    assert "[S](https://x.test/a_%28b%29)" in text
 
 
 def test_raw_text_carries_titles_sources_and_links_and_ends_with_a_persian_line():
@@ -305,9 +335,9 @@ def test_raw_text_carries_titles_sources_and_links_and_ends_with_a_persian_line(
 
     text = raw_text(stories, "HTTP 500")
 
-    assert "First headline" in text
-    assert "Outlet One" in text
-    assert "https://x.test/1" in text
+    # One line per story, its headline and source carrying the address.
+    assert "[First headline — Outlet One](https://x.test/1)" in text
+    assert "[Second headline — Outlet Two](https://x.test/2)" in text
     assert "Second headline" in text
     assert "https://x.test/2" in text
     last = text.rstrip().splitlines()[-1]

@@ -226,9 +226,12 @@ What survives goes to the model newest first, capped at 60 candidates; it picks 
 `CRIER_NEWS_MAX_ITEMS` (default 10) and writes one short Persian line for each, answering with
 indices the code maps back to the real title, source and link — so a model that invents a link is
 impossible rather than merely unlikely. Each message is a fixed Persian header, then its stories
-numbered with Persian digits as their Persian line, then `منبع: <source> — <link>`. The link is a
-Google News redirect, never the publisher's URL; the server never resolves it — the owner's browser
-does when he taps it.
+numbered with Persian digits as their Persian line, then `منبع: [<source>](<link>)`. Bale formats
+every message as Markdown, so the address hides behind the source name rather than filling the line
+with three hundred characters of Google News redirect; a story with no source shows the label
+«لینک خبر» instead. The address itself is still in the text — which is what the 4096-character
+count sees — and it is a Google News redirect, never the publisher's URL: the server never resolves
+it, the owner's browser does when he taps it.
 
 **The stories go out in groups of `CRIER_NEWS_BATCH_SIZE`** (default 5), each message restarting its
 numbering at ۱, so ten stories arrive as two messages of five. The split is not only the owner's
