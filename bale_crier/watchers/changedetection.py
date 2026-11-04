@@ -36,7 +36,6 @@ from ..changedetection import (
 )
 from ..config import Settings
 from ..memory import WatcherMemory
-from ..bale import markdown_link
 from ..models import Bulletin, Watch
 from ..persian import digits
 from .window import window_passed
@@ -55,10 +54,6 @@ TEXT_CHARS = 3500
 # Room kept for the "and N pages in the next message" line, so that notice can never
 # push the text past the limit it is counting against.
 NOTICE_CHARS = 64
-
-# The label a page's link falls back to when changedetection has no title for it.
-# A page is written with a title in the usual case; the API allows an empty one.
-PAGE_LABEL = "صفحه"
 
 UNKNOWN_TEXT = (
     "خواندن تغییر‌ها از changedetection ممکن نشد و نمی‌دانم چیزی عوض شده یا نه. "
@@ -115,12 +110,22 @@ def _kept(lines: list[str]) -> list[int]:
     return sorted(kept)
 
 
-def _block(watch: Watch, diff: DiffRead, now: datetime) -> str:
+def _head(watch: Watch, now: datetime) -> str:
+    """The page's name, how long ago it changed, and its address as plain text.
+
+    A Markdown link hides the address behind the name, and the owner asked to read the
+    address itself: it goes on its own line, so a long one is still a line he can copy.
+    A page with no title is its address alone.
+    """
     ago = _ago(now.timestamp() - watch.last_changed)
-    # The page's own title is the link's label, so the address rides under it instead
-    # of taking the line: a watch's URL is often long, and it is the same page the
-    # title already names.
-    head = f"{markdown_link(watch.title, watch.url, fallback=PAGE_LABEL)} — {ago}"
+    title = watch.title.strip()
+    if not title:
+        return f"{watch.url} — {ago}"
+    return f"{title} — {ago}\n{watch.url}"
+
+
+def _block(watch: Watch, diff: DiffRead, now: datetime) -> str:
+    head = _head(watch, now)
     if diff.lines is None:
         return f"{head}\nمتن تغییر خوانده نشد: {diff.error}"
     if not diff.lines:

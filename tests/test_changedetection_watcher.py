@@ -185,36 +185,37 @@ def test_a_just_seen_change_says_so_rather_than_zero_minutes(tmp_path):
     assert "همین حالا" in subject.produce(NOW)[0].text
 
 
-def test_a_watch_with_a_title_puts_its_address_under_the_title(tmp_path):
-    """Bale renders Markdown, so the page's name is what the owner sees and taps; the
-    address is in the text behind it, not in the line."""
+def test_a_watch_with_a_title_keeps_its_address_plain_below_the_name(tmp_path):
+    """The owner reads the address itself: a Markdown link would hide it behind the
+    name, so the name and how long ago come first and the address sits under them."""
     memory = primed(tmp_path, **{MODELS: 1})
     subject = ChangedetectionWatcher(
         settings(),
         memory,
-        Watches([watch(title="مدل‌های زن", last_changed=10)]),
+        Watches([watch(title="مدل‌های زن", last_changed=int(NOW.timestamp()) - 20 * 60)]),
         Diffs(DiffRead([], "")),
     )
 
     text = subject.produce(NOW)[0].text
 
-    assert "[مدل‌های زن](https://example.test/models)" in text
-    assert "https://example.test/models — ۲۰" not in text
+    assert "مدل‌های زن — ۲۰ دقیقه پیش\nhttps://example.test/models" in text
+    assert "[مدل‌های زن](https://example.test/models)" not in text
 
 
-def test_a_watch_with_no_title_still_gets_a_label(tmp_path):
-    """Markdown has no link without one, and the API allows an empty title."""
+def test_a_watch_with_no_title_is_its_address(tmp_path):
+    """The API allows an empty title, and plain addresses need no label to fall back on."""
     memory = primed(tmp_path, **{MODELS: 1})
     subject = ChangedetectionWatcher(
         settings(),
         memory,
-        Watches([watch(last_changed=10)]),
+        Watches([watch(last_changed=int(NOW.timestamp()) - 20 * 60)]),
         Diffs(DiffRead([], "")),
     )
 
     text = subject.produce(NOW)[0].text
 
-    assert "[صفحه](https://example.test/models)" in text
+    assert "https://example.test/models — ۲۰ دقیقه پیش" in text
+    assert "[صفحه]" not in text
 
 
 def test_every_changed_page_of_one_run_is_one_bulletin(tmp_path):

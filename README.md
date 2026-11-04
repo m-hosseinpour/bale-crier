@@ -175,9 +175,10 @@ silently. A number that moves *backwards* (history cleared in changedetection) i
 change, so it is recorded without a word.
 
 One bulletin per run, not one per page: the pages are checked together, and a run rarely finds more
-than one. Each page is a block — its title as a Markdown link carrying the page's address (Bale
-renders every message as Markdown, so the address does not fill the line; a page with no title shows
-«صفحه»), how long ago the change was seen, then the changed lines in patch style: `+` for what appeared, `-` for what went away, and both when a line was
+than one. Each page is a block — its title, how long ago the change was seen, and the page's address
+as plain text on the line below the title (a page with no title is just its address; the owner asked
+for plain addresses rather than Markdown links, 2026-11-05) — then the changed lines in patch style:
+`+` for what appeared, `-` for what went away, and both when a line was
 rewritten. A block carries at most ten changed lines — up to five from each side, borrowing the rest
 when one side is short — plus a line counting the remainder, so a rewritten page does not show only
 what vanished. The whole text stays inside one Bale

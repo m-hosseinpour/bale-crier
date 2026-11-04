@@ -126,8 +126,8 @@ tappable name and the owner never sees the three-hundred-character Google News r
 with no source keeps the address and takes the label «لینک خبر». A `]` in the source name and a
 parenthesis in the address would both end the link early, so the label loses its brackets and the
 address has them percent-encoded — the same address a browser opens. The rule lives in
-`bale.py` as `markdown_link`, because Bale's formatting is Bale's contract and two producers now
-lean on it; the changedetection watcher puts its page title there too. The English fallback folds
+`bale.py` as `markdown_link`. Only the digest builds Markdown links: the changedetection watcher
+sends its pages' addresses as plain text (owner's request, 2026-11-05). The English fallback folds
 each headline and its source into the link label the same way, one line per story.
 
 Nothing about the character budget changes: the address is still in the text the API counts, so a
