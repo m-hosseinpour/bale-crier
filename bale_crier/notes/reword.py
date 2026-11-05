@@ -1,13 +1,14 @@
 """The reword prompt, and what goes out when the model cannot be reached.
 
-The model expands the note into a short Persian paragraph — what the item is
-worth and how to do it today — so the same item never arrives in the same words
-twice; the earlier wordings are handed to it so it can avoid them. Two short
-sentences under 200 characters, not three or four: the owner cut the length in
-half (2026-10-27). A failed call
-is not a lost note (owner's ruling, 2026-10-17): the bulletin carries the note's
-own text followed by one short line saying the rewording did not happen, and the
-history then records what was actually sent.
+The model expands the note into a short Persian paragraph so the same item never
+arrives in the same words twice; the earlier wordings are handed to it so it can
+avoid them. Two short sentences under 200 characters, not three or four: the
+owner cut the length in half (2026-10-27). The expansion no longer carries
+practical advice — no "do this today" line — because the owner found those tips
+useless in practice (2026-11-05); the second sentence now deepens the note's
+meaning instead. A failed call is not a lost note (owner's ruling, 2026-10-17):
+the bulletin carries the note's own text followed by one short line saying the
+rewording did not happen, and the history then records what was actually sent.
 
 There is no separate motivational sentence: the expansion carries the warm tone
 inside it, so nothing is appended to it (owner's ruling, 2026-10-21).
@@ -26,8 +27,9 @@ SYSTEM_INSTRUCTION = (
     "تو یادداشت‌های شخصی صاحب ربات را به یک پیام فارسیِ تازه تبدیل می‌کنی. "
     "معنی یادداشت را نگه دار و آن را در دو جملهٔ کوتاه و پیوسته بسط بده؛ "
     "خودِ یادداشت را عیناً تکرار نکن. "
-    "بگو چرا این یادداشت به کار می‌آید و چطور می‌شود همین امروز انجامش داد؛ "
-    "توضیح، تشبیه و مثال آزاد است، ولی کوتاه. "
+    "راهنمایی عملی و نکتهٔ کاربردی نده و نگو چطور می‌شود آن را انجام داد؛ "
+    "به جایش ارزش و معنای یادداشت را روشن‌تر و ملموس‌تر کن. "
+    "توضیح و تشبیه آزاد است، ولی کوتاه. "
     "کل متن از دویست نویسه بیشتر نشود. "
     "هیچ عدد، آمار، نقل‌قول یا رویدادی از خودت نساز و یادداشت را به واقعیتی بیرونی گره نزن. "
     "لحن گرم، صمیمی و انگیزه‌بخش باشد، نه دستوری و نه نصیحت‌گرانه. "
@@ -48,7 +50,10 @@ def build_messages(note: Note, previous: Sequence[str]) -> list[dict[str, str]]:
         lines.append("پیش‌تر این متن‌ها فرستاده شده‌اند؛ آن‌ها را تکرار نکن و بازنویسی تازه‌ای بساز:")
         lines.extend(f"- {text}" for text in previous)
     lines.append("")
-    lines.append("همین یادداشت را در دو جملهٔ کوتاه، تازه، کاربردی و با لحنی گرم بسط بده، در حدّ دویست نویسه.")
+    lines.append(
+        "همین یادداشت را در دو جملهٔ کوتاه و تازه، بی‌آنکه راهنمایی عملی بدهی، "
+        "و با لحنی گرم بسط بده، در حدّ دویست نویسه."
+    )
     return [
         {"role": "system", "content": SYSTEM_INSTRUCTION},
         {"role": "user", "content": "\n".join(lines)},

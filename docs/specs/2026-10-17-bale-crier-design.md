@@ -165,9 +165,10 @@ one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
 The prompt asks for: the note's meaning kept, then **expanded** into two short
-Persian sentences, under 200 characters — why the note is worth acting on, and how to
-do it today, with an explanation, analogy or example free to be added, but no
-number, statistic, quote or event invented; a fresh wording each time, with the
+Persian sentences, under 200 characters — the note's value and meaning made
+clearer and more concrete, with an explanation or analogy free to be added, but no
+practical advice (the owner found "how to do it today" tips useless in practice,
+2026-11-05) and no number, statistic, quote or event invented; a fresh wording each time, with the
 previous wordings of the same note supplied so the model can avoid them; correct
 U+200C in every half-space word, taught with worked examples (`می‌شود`,
 `تجربه‌ها`, `بیشتر`) because the bare rule still let one real bulletin go out
@@ -232,8 +233,8 @@ calendar spec. Changing the times means editing the unit and running
 `systemctl --user daemon-reload`; the unit's own comments say so.
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
-producer has no timer of its own — with two runs a day (08:00 and 20:00, the
-owner's choice on 2026-10-27, down from three) that is "twice a day". The credit
+producer has no timer of its own — with one run a day at 07:00 (the owner's choice
+on 2026-11-05, down from three, then two) that is "once a day". The credit
 watcher, the disk watcher, the
 changedetection watcher and the news digest each have a timer of their own, so
 they are not part of those runs.
@@ -500,9 +501,9 @@ send is verified by hand, once per milestone.
 
 - Which other watchers the owner wants, beyond AvalAI credit, free disk space and
   the pages changedetection.io watches.
-- The note times are 08:00 and 20:00 — twice a day, as the owner chose on
-  2026-10-27, down from the three-times default; the hourly credit check needs no
-  confirmation.
+- The note time is 07:00 — once a day, as the owner chose on 2026-11-05, down from
+  08:00 and 20:00 (and the three-times default before that); the hourly credit check
+  needs no confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project
   keeps its own news; the news digest is a new, different thing — the day's AI trends from a web
   feed — and has its own design (`2026-10-17-news-digest-design.md`).
