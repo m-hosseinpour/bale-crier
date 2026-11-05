@@ -121,12 +121,15 @@ def test_the_instruction_forbids_inventing_facts():
 
 def test_the_instruction_no_longer_asks_for_how_to_apply_the_note():
     # Owner's ruling (2026-11-05): the "how to do it today" advice was not useful in
-    # practice. The two sentences and the 200-character cap stay; only the content
-    # changes, so the instruction must forbid the advice and the user turn must drop
-    # the "کاربردی" phrasing that asked for it.
-    assert "راهنمایی عملی" in SYSTEM_INSTRUCTION
-    assert "همین امروز" not in SYSTEM_INSTRUCTION
-    assert "کاربردی" not in build_messages(note(), [])[1]["content"]
+    # practice, so the ask is gone — and the prompt spells out no prohibition of its
+    # own either (owner's correction, same day). The two sentences and the
+    # 200-character cap stay; the second sentence carries the note's meaning instead.
+    joined = prompt_text(note(), [])
+    assert "همین امروز" not in joined
+    assert "راهنمایی عملی" not in joined
+    assert "کاربردی" not in joined
+    assert "دو جملهٔ کوتاه" in SYSTEM_INSTRUCTION
+    assert "دویست نویسه" in SYSTEM_INSTRUCTION
 
 
 def test_a_successful_reword_returns_the_model_text_exactly():
