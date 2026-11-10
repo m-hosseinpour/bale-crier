@@ -118,6 +118,7 @@ deploy/user/bale-crier-news.service + .timer     the news digest, three times a 
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
 data/history.jsonl
+data/runs.jsonl
 data/watchers.json
 tests/
 ```
@@ -133,6 +134,11 @@ tests/
   `note_id` optional, `list_name` optional (which list a note came from).
 - `RunReport` — `sent`, `failed`, `producers`, and `errors` (one reason per failed
   send, in the order they failed).
+- `RunRecord` — `ts`, `only` (the `--only` names, or `None` for the ordinary note
+  run), `producers` actually built and run, `sent`, `failed`, and `errors` (the
+  sender's reasons, exactly `RunReport.errors`). One append-only line per completed
+  run in `data/runs.jsonl`, written even when the run sent nothing, so a missing
+  line means the run never finished.
 - history line — `{ts, kind, list_name, note_id, text, ok, error}`. `error` is the sender's own
   reason when the send failed, and is absent from lines written before 2026-10-29: a refused
   bulletin used to be a bare `ok: false`, which is why the five lost digests of that week had to be
