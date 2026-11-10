@@ -85,7 +85,7 @@ One **run** is one wake-up. Every run does the same three things:
 
 1. ask every registered **producer** what bulletins it has right now;
 2. send each bulletin to Bale;
-3. append one history line per bulletin.
+3. append one history line per bulletin, and one run-log line for the run itself.
 
 A `watcher` is one kind of producer (it inspects external state); the note-list
 reader is another. Adding a new kind of message later means writing a producer
@@ -94,10 +94,12 @@ and registering it — not editing the run loop, the sender, or the history.
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Note, Story, Watch, Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport
+  models.py      Note, Story, Watch, Bulletin, SendResult, RunReport, RunRecord, HistoryRecord, Package, CreditReport
   producers.py   the Producer protocol; a registry joins when a second producer does
   bale.py        the sender (sendMessage today; media later)
   history.py     append-only JSONL with a size cap
+  runs.py        the run log: append-only JSONL, one line per completed run
+  jsonl.py       the crash-safe append and trim the history and run log share
   memory.py      where a watcher keeps its own state across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
   persian.py     numbers written with Persian digits, for the texts that count
@@ -256,6 +258,8 @@ There are therefore five timers: `bale-crier.timer` for the note bulletins,
 | `CRIER_LISTS_DIR` | the content directory (default `lists`) |
 | `CRIER_HISTORY_PATH` | the history file (default `data/history.jsonl`) |
 | `CRIER_HISTORY_MAX_LINES` | the history cap |
+| `CRIER_RUNS_PATH` | the run log (default `data/runs.jsonl`) |
+| `CRIER_RUNS_MAX_LINES` | the run-log cap (default 1000) |
 | `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM (`CRIER_OPEN_AI_API_KEY` inherits `CRIER_AVALAI_API_KEY` when empty) |
 | `CRIER_OPEN_AI_TIMEOUT` | how long a model call may take (default 120; the model is a reasoning model and needs tens of seconds, where `CRIER_HTTP_TIMEOUT` is a Bale-sized allowance) |
 | `CRIER_AVALAI_API_KEY` | what the credit watcher reads |

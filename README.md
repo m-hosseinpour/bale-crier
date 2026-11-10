@@ -273,7 +273,7 @@ note run leaves it out and the two cannot race over one seen set. `--only news` 
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note, Story, Watch
+  models.py      Bulletin, SendResult, RunReport, RunRecord, HistoryRecord, Package, CreditReport, Note, Story, Watch
   bale.py        the sender — the only place that talks to Bale, and the one that knows its Markdown
   history.py     append-only JSONL with a size cap
   runs.py        the run log: one append-only line per completed run

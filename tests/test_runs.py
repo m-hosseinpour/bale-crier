@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 
 import pytest
@@ -172,6 +173,28 @@ def test_a_failed_send_records_the_failure_and_the_senders_reason(tmp_path):
     assert records[0].sent == 0
     assert records[0].failed == 1
     assert records[0].errors == ["message is too long"]
+
+
+def test_a_built_producer_that_produces_nothing_still_records_a_line(tmp_path, monkeypatch):
+    """A quiet run is not the same as a run that built nothing: the disk watcher
+    above its threshold ran, and the log must say it was there."""
+    class Usage:
+        free = 10 * 1024**3
+        total = 100 * 1024**3
+        used = 90 * 1024**3
+
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: Usage())
+    send, calls = stub_sender(SendResult(ok=True))
+
+    run_once(settings(), now=NOW, send=send, only=["disk"])
+
+    assert calls == []
+    records = read_all(path=tmp_path / "data" / "runs.jsonl")
+    assert records[0].only == ["disk"]
+    assert records[0].producers == ["disk"]
+    assert records[0].sent == 0
+    assert records[0].failed == 0
+    assert records[0].errors == []
 
 
 def test_a_run_with_no_producer_still_records_a_line(tmp_path):
