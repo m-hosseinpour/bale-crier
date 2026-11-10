@@ -55,6 +55,8 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     assert settings.lists_dir == Path("lists")
     assert settings.history_path == Path("data/history.jsonl")
     assert settings.history_max_lines == 5000
+    assert settings.runs_path == Path("data/runs.jsonl")
+    assert settings.runs_max_lines == 1000
     assert settings.http_timeout == 30
     assert settings.smoke is False
     assert settings.open_ai_base_url == "https://api.avalai.ir/v1"
@@ -97,6 +99,29 @@ def test_a_history_cap_below_one_is_refused(monkeypatch):
         load_settings()
 
     assert "CRIER_HISTORY_MAX_LINES" in str(caught.value)
+
+
+def test_the_run_log_settings_take_their_values_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_RUNS_PATH", "state/runs.jsonl")
+    monkeypatch.setenv("CRIER_RUNS_MAX_LINES", "50")
+
+    settings = load_settings()
+
+    assert settings.runs_path == Path("state/runs.jsonl")
+    assert settings.runs_max_lines == 50
+
+
+def test_a_run_log_cap_below_one_is_refused(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_RUNS_MAX_LINES", "0")
+
+    with pytest.raises(ConfigError) as caught:
+        load_settings()
+
+    assert "CRIER_RUNS_MAX_LINES" in str(caught.value)
 
 
 def test_the_credit_settings_take_their_values_from_the_environment(monkeypatch):

@@ -117,3 +117,19 @@ class RunReport(BaseModel):
     failed: int
     producers: list[str]
     errors: list[str] = Field(default_factory=list)
+
+
+class RunRecord(BaseModel):
+    """One line of the run log: what one run did, whether or not it said anything.
+
+    The history records the bulletins the owner read; this records the run itself,
+    so a timer that dies is a gap in the log rather than a quiet day. ``only`` is
+    ``None`` for the ordinary note run and the ``--only`` values otherwise.
+    """
+
+    ts: datetime
+    only: list[str] | None = None
+    producers: list[str] = Field(default_factory=list)
+    sent: int = 0
+    failed: int = 0
+    errors: list[str] = Field(default_factory=list)

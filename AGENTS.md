@@ -73,7 +73,7 @@ bale_crier/changedetection.py  the changedetection.io API: the watch list and on
 deploy/user/    the systemd units
 lists/          the owner's content (gitignored)
 lists.example/  the list format, committed
-data/           the history (gitignored)
+data/           the history, the run log and the watcher memory (gitignored)
 tests/          pytest
 ```
 

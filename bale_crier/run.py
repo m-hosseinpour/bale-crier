@@ -7,10 +7,11 @@ from .bale import send_message
 from .config import Settings
 from .history import append
 from .memory import WatcherMemory
-from .models import HistoryRecord, RunReport, SendResult
+from .models import HistoryRecord, RunRecord, RunReport, SendResult
 from .news.producer import NewsProducer
 from .notes.producer import NoteProducer
 from .producers import Producer, SmokeProducer
+from .runs import append as append_run
 from .watchers.avalai_credit import CreditWatcher
 from .watchers.changedetection import ChangedetectionWatcher
 from .watchers.disk import DiskWatcher
@@ -129,9 +130,26 @@ def run_once(
     if not failed:
         memory.save()
 
+    producer_names = [producer.name for producer in producers]
+    # Written even when the run said nothing and even when it built no producer: a
+    # stale line is the dashboard's signal that the timer stopped, and a missing line
+    # must mean the run never finished, not that it had nothing to say.
+    append_run(
+        RunRecord(
+            ts=now,
+            only=list(only) if only is not None else None,
+            producers=producer_names,
+            sent=sent,
+            failed=failed,
+            errors=list(errors),
+        ),
+        path=settings.runs_path,
+        max_lines=settings.runs_max_lines,
+    )
+
     return RunReport(
         sent=sent,
         failed=failed,
-        producers=[producer.name for producer in producers],
+        producers=producer_names,
         errors=errors,
     )

@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Bounded below because each of these silently does damage at zero: a cap of
     # zero empties the history, and a zero timeout fails every call.
     history_max_lines: int = Field(default=5000, ge=1)
+    # The run log is a separate store from the history: one line per completed run,
+    # quiet ones included. The dashboard reads it to tell a dead timer from a quiet
+    # day, so it is capped much shorter than the history.
+    runs_path: Path = Path("data/runs.jsonl")
+    runs_max_lines: int = Field(default=1000, ge=1)
     http_timeout: int = Field(default=30, ge=1)
     smoke: bool = False
     open_ai_base_url: str = "https://api.avalai.ir/v1"

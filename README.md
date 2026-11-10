@@ -47,6 +47,19 @@ sender's own reason when the send failed (`error`), and the run's summary names 
 stderr, so a refusal is never a bare count. The exit code is zero when nothing failed. The watcher memory is written only when every send landed, so a failed send
 costs a repeat next run rather than the change it was carrying.
 
+Every completed run also appends one line to the **run log** (`CRIER_RUNS_PATH`, default
+`data/runs.jsonl`; capped at `CRIER_RUNS_MAX_LINES`, default 1000). That line says when the run
+happened (`ts`), what `--only` asked for (`only`, `null` for the ordinary note run), which producers
+were actually built (`producers`), how many messages went and failed (`sent`, `failed`), and the
+sender's reasons (`errors`). It is written even when the run sent nothing and even when no producer
+could be built, so a missing line means the run never finished — not that it had nothing to say. A
+run that raises writes no line. The run log is deliberately separate from the history: the history
+is what the owner read, the run log is what the process did, and neither is derived from the other.
+
+```json
+{"ts":"2026-11-10T02:05:12.123456Z","only":["credit"],"producers":["credit"],"sent":0,"failed":0,"errors":[]}
+```
+
 `CRIER_SMOKE=1` replaces the producers with the smoke producer, which sends one fixed test bulletin.
 It is how the path is proved after a deploy, and it is never registered by default.
 
@@ -263,6 +276,8 @@ bale_crier/
   models.py      Bulletin, SendResult, RunReport, HistoryRecord, Package, CreditReport, Note, Story, Watch
   bale.py        the sender — the only place that talks to Bale, and the one that knows its Markdown
   history.py     append-only JSONL with a size cap
+  runs.py        the run log: one append-only line per completed run
+  jsonl.py       the crash-safe append and trim both stores share
   memory.py      a watcher's own state, across runs
   credit.py      the AvalAI credit endpoint, parsed into numbers
   persian.py     numbers written with Persian digits, for the texts that count
@@ -277,7 +292,7 @@ bale_crier/
 deploy/user/     the systemd units
 lists/           the owner's content (gitignored)
 lists.example/   the list format, committed
-data/            the history and the watcher memory (gitignored)
+data/            the history, the run log and the watcher memory (gitignored)
 tests/           pytest
 ```
 
