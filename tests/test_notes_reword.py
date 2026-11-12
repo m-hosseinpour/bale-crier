@@ -132,6 +132,31 @@ def test_the_instruction_no_longer_asks_for_how_to_apply_the_note():
     assert "دویست نویسه" in SYSTEM_INSTRUCTION
 
 
+def test_the_instruction_asks_for_a_plain_explanation_not_a_literary_one():
+    # Owner's ruling (2026-11-12): the bulletins read as metaphorical, literary
+    # descriptions of the note instead of explaining it, so the prompt now asks
+    # for a plain, clear explanation and forbids simile, metaphor and poetic
+    # phrasing. The motivational tone went with them — warmth stays, the rallying
+    # does not. Both turns are checked: the user turn used to carry the literary
+    # ask ("بسط بده") of its own.
+    messages = build_messages(note(), [])
+    assert "ساده و روشن" in SYSTEM_INSTRUCTION
+    assert "تشبیه، استعاره" in SYSTEM_INSTRUCTION
+    assert "تشبیه آزاد است" not in SYSTEM_INSTRUCTION
+    assert "انگیزه" not in SYSTEM_INSTRUCTION
+    assert "بسط" not in SYSTEM_INSTRUCTION
+    assert "ساده و روشن توضیح بده" in messages[1]["content"]
+    assert "بسط" not in messages[1]["content"]
+    assert "ساده و روشن توضیح بده" in prompt_text(note(), [])
+
+
+def test_the_instruction_keeps_the_note_from_being_narrated():
+    # The plain prompt made the model open with «یادداشت می‌گوید…», which is clear
+    # but reads as a report about a note rather than the reminder itself.
+    assert "دربارهٔ خودِ یادداشت حرف نزن" in SYSTEM_INSTRUCTION
+    assert "نگو «یادداشت می‌گوید»" in SYSTEM_INSTRUCTION
+
+
 def test_a_successful_reword_returns_the_model_text_exactly():
     complete, _ = stub(LlmRead(text="متن تازه", error=""))
 

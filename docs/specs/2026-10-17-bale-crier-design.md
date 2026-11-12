@@ -12,8 +12,9 @@ needs told. Three families of message, one channel:
   falling below a threshold;
 - **notes** drawn from the owner's own lists, expanded by an LLM into a few lines
   of Persian so the same item does not arrive in the same words twice and does
-  not arrive as a one-line bullet. The expansion's tone may be warm and
-  motivational; nothing is appended to it (settled 2026-10-17, expanded 2026-10-21);
+  not arrive as a one-line bullet. The expansion explains the note plainly and
+  clearly; its tone may be warm, and nothing is appended to it (settled
+  2026-10-17, expanded 2026-10-21, made plain 2026-11-12);
 - **news** — the day's AI trends, drawn from a web feed and written in Persian.
   It is a subsystem of its own, designed in
   `2026-10-17-news-digest-design.md` (settled 2026-10-17).
@@ -173,23 +174,37 @@ one, reached through AvalAI's OpenAI-compatible endpoint at
 `https://api.avalai.ir/v1`.
 
 The prompt asks for: the note's meaning kept, then **expanded** into two short
-Persian sentences, under 200 characters — the note's value and meaning made
-clearer and more concrete, with an explanation or analogy free to be added, but no
-practical advice (the owner found "how to do it today" tips useless in practice,
-2026-11-05) and no number, statistic, quote or event invented; a fresh wording each time, with the
+Persian sentences, under 200 characters — the note's point explained plainly,
+with why it matters — no practical advice (the owner found "how to do it today"
+tips useless in practice, 2026-11-05) and no number, statistic, quote or event
+invented; a fresh wording each time, with the
 previous wordings of the same note supplied so the model can avoid them; correct
 U+200C in every half-space word, taught with worked examples (`می‌شود`,
 `تجربه‌ها`, `بیشتر`) because the bare rule still let one real bulletin go out
-with `میآید`; and a warm, motivational tone inside the
+with `میآید`; and a warm tone inside the
 expansion, since nothing may be appended to it. Output is the message text alone
 — no preamble, no quotes, no markdown scaffolding, no line break.
+
+**Plain, not literary** (owner's ruling, 2026-11-12). The bulletins had drifted
+into metaphorical description — "this awareness, like a warm light, dims the
+ambiguities", "something sprouts in you" — so the note was described rather than
+explained. The instruction now asks for a plain, clear explanation, forbids
+simile, metaphor, poetic phrasing and literary description, and tells the model to
+say the point itself instead of reporting what "the note says". The motivational
+tone went with the metaphors: warmth stays (the 2026-10-21 ruling), rallying does
+not. Length and sentence count are untouched. Verified on 2026-11-12 with two
+rounds of real calls through `CRIER_OPEN_AI_MODEL` (eight in all, on four notes):
+two sentences each and no figure of speech; lengths 139 to 202 characters, one
+call two characters over the cap, which is a prompt-level ask and not enforced in
+code.
 
 **The note is expanded, not merely reworded** (owner's ruling, 2026-10-21). One
 short line read as a bullet on a list rather than as a reminder worth receiving,
 so the bulletin is now a few lines: the earlier prompt's "add no claim of your
 own" and "keep it short" both pulled the answer back down to a single sentence
 and are gone. What stays is that nothing is *fabricated* — the freedom is in
-explaining and applying the note, not in asserting facts about the world — and
+explaining the note, not in asserting facts about the world (the "apply it today"
+freedom went on 2026-11-05) — and
 that the extra lines live inside the rewording rather than after it, so the
 "nothing appended" ruling still holds. Verified on 2026-10-21 with three real
 calls through `CRIER_OPEN_AI_MODEL`: three to four sentences, no line breaks,

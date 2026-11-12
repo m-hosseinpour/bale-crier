@@ -6,9 +6,13 @@ avoid them. Two short sentences under 200 characters, not three or four: the
 owner cut the length in half (2026-10-27). The expansion no longer carries
 practical advice — no "do this today" line — because the owner found those tips
 useless in practice (2026-11-05); the second sentence now deepens the note's
-meaning instead. A failed call is not a lost note (owner's ruling, 2026-10-17):
-the bulletin carries the note's own text followed by one short line saying the
-rewording did not happen, and the history then records what was actually sent.
+meaning instead. Plain, not literary (owner's ruling, 2026-11-12): the bulletins
+had turned into metaphorical descriptions of the note, so the prompt now asks for
+a plain, clear explanation, forbids simile, metaphor and poetic phrasing, and
+drops the motivational tone — warmth stays, rallying does not. A failed call is
+not a lost note (owner's ruling, 2026-10-17): the bulletin carries the note's own
+text followed by one short line saying the rewording did not happen, and the
+history then records what was actually sent.
 
 There is no separate motivational sentence: the expansion carries the warm tone
 inside it, so nothing is appended to it (owner's ruling, 2026-10-21).
@@ -25,13 +29,14 @@ PREVIOUS_LIMIT = 3
 
 SYSTEM_INSTRUCTION = (
     "تو یادداشت‌های شخصی صاحب ربات را به یک پیام فارسیِ تازه تبدیل می‌کنی. "
-    "معنی یادداشت را نگه دار و آن را در دو جملهٔ کوتاه و پیوسته بسط بده؛ "
+    "معنی یادداشت را نگه دار و مطلبش را در دو جملهٔ کوتاه و پیوسته، ساده و روشن توضیح بده؛ "
     "خودِ یادداشت را عیناً تکرار نکن. "
-    "در این دو جمله، معنا و ارزش یادداشت را روشن و ملموس کن. "
-    "توضیح و تشبیه آزاد است، ولی کوتاه. "
+    "خودِ مطلب را مستقیم بگو و روشن کن چرا مهم است؛ "
+    "دربارهٔ خودِ یادداشت حرف نزن و نگو «یادداشت می‌گوید». "
+    "تشبیه، استعاره، جملهٔ شاعرانه و توصیف ادبی به کار نبر. "
     "کل متن از دویست نویسه بیشتر نشود. "
     "هیچ عدد، آمار، نقل‌قول یا رویدادی از خودت نساز و یادداشت را به واقعیتی بیرونی گره نزن. "
-    "لحن گرم، صمیمی و انگیزه‌بخش باشد، نه دستوری و نه نصیحت‌گرانه. "
+    "لحن گرم و صمیمی باشد، نه دستوری و نه نصیحت‌گرانه. "
     "واژه‌ها و جمله‌بندی را تازه بساز و از تکرار متن‌های پیشین بپرهیز. "
     "نیم‌فاصله را با نویسهٔ واقعی بنویس، مثل «می‌شود»، «تجربه‌ها» و «بیشتر»، و پیشوند «نا» را چسبیده («ناموفق»). "
     "فقط متن پیام را بنویس؛ بدون مقدمه، بدون گیومه، بدون مارک‌داون، بدون عنوان و بدون شکستن خط."
@@ -51,7 +56,7 @@ def build_messages(note: Note, previous: Sequence[str]) -> list[dict[str, str]]:
     lines.append("")
     lines.append(
         "همین یادداشت را در دو جملهٔ کوتاه و تازه، با لحنی گرم و در حدّ دویست نویسه، "
-        "بسط بده."
+        "ساده و روشن توضیح بده."
     )
     return [
         {"role": "system", "content": SYSTEM_INSTRUCTION},

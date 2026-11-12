@@ -104,11 +104,12 @@ N days" floor: with the notes ordered by last send, such a floor can only ever r
 cycle had already picked.
 
 The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as two short
-sentences under 200 characters making the note's value and meaning clearer, with the wordings it
-already arrived in supplied so the model can avoid them. The model may explain or compare, but it may
-not invent a number, statistic, quote or event, and it gives no practical tip about how to apply the
-note — the owner found those tips useless (2026-11-05). The history stores the
-expanded text, because that is what the owner actually read. A failed call does not cost the note:
+sentences under 200 characters explaining the note's point and why it matters, with the wordings it
+already arrived in supplied so the model can avoid them. The explanation is plain and clear: no
+simile, metaphor or poetic phrasing, and it says the point rather than reporting what "the note says"
+(2026-11-12). The model may not invent a number, statistic, quote or event, and it gives no practical
+tip about how to apply the note — the owner found those tips useless (2026-11-05). The history stores
+the expanded text, because that is what the owner actually read. A failed call does not cost the note:
 the bulletin then carries the note's own
 text followed by one line saying the expansion did not happen, and the history records that.
 
