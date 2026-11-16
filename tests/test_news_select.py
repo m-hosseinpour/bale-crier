@@ -8,6 +8,7 @@ from bale_crier.news.select import (
     CANDIDATE_LIMIT,
     DEFAULT_BLOCKLIST,
     HEADER,
+    NOTHING,
     SEEN_LIMIT,
     TEXT_CHARS,
     Chosen,
@@ -185,6 +186,18 @@ def test_the_prompt_is_persian_with_a_half_space():
     assert "\u200c" in blob
 
 
+def test_the_prompt_names_the_bar_and_the_way_out_of_a_quiet_run():
+    """The prompt is the filter: it has to say what qualifies, what does not, and
+    what to answer when nothing does."""
+    blob = prompt_blob([story("a")], max_items=5)
+
+    assert "مدل تازه" in blob
+    assert "سرمایه\u200cگذاری" in blob  # the workaday news it must drop
+    assert "هیچ چیز انتخاب نکن" in blob
+    assert NOTHING in blob
+    assert blob.rstrip().endswith(NOTHING)
+
+
 def test_parse_answer_maps_an_index_to_its_story_and_line():
     stories = [story("a", title="A"), story("b", title="B")]
 
@@ -214,7 +227,27 @@ def test_a_pipe_inside_the_persian_line_survives():
 
 def test_an_out_of_range_index_is_a_model_failure():
     assert parse_answer("3|متن", [story("a"), story("b")], max_items=5) is None
-    assert parse_answer("0|متن", [story("a"), story("b")], max_items=5) is None
+    assert parse_answer("4|متن", [story("a"), story("b")], max_items=5) is None
+
+
+def test_the_nothing_line_is_an_empty_selection_not_a_failure():
+    """`0|` is the answer for "nothing here is worth sending": a real answer, so the
+    producer can stay quiet instead of falling back to English headlines."""
+    assert parse_answer("0|", [story("a")], max_items=5) == []
+    assert parse_answer("0|هیچ خبری نبود", [story("a")], max_items=5) == []
+    assert parse_answer("\n0|\n\n", [story("a")], max_items=5) == []
+    # The model writes Persian elsewhere, so its zero may come as ۰.
+    assert parse_answer("۰|", [story("a")], max_items=5) == []
+
+
+def test_the_nothing_line_mixed_with_real_lines_is_a_failure():
+    # A confused answer is not a quiet day, and not a partial digest either.
+    assert parse_answer("0|\n1|متن", [story("a")], max_items=5) is None
+    assert parse_answer("1|متن\n0|", [story("a")], max_items=5) is None
+
+
+def test_a_bare_zero_without_the_pipe_is_a_failure():
+    assert parse_answer("0", [story("a")], max_items=5) is None
 
 
 def test_a_line_without_a_pipe_is_a_model_failure():
@@ -352,6 +385,9 @@ def test_feed_failure_text_names_the_code_and_never_claims_there_was_no_news():
 
     assert "HTTP 500" in text
     assert "ممکن نشد" in text
+    assert "خواندن ناموفق" in text
+    assert "نبودن خبر" in text
+    assert "اجرای بعدی" in text
     assert has_persian(text)
     assert "\u200c" in text
     for claim in NO_NEWS_CLAIMS:

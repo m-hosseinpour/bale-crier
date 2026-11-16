@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -162,7 +163,7 @@ def test_the_candidates_are_newest_first_and_capped(tmp_path):
     NewsProducer(settings(), memory(tmp_path), read=read, complete=complete).produce(NOW)
 
     prompt = calls[0]["messages"][-1]["content"]
-    numbered = [line for line in prompt.splitlines() if line[:1].isdigit()]
+    numbered = [line for line in prompt.splitlines() if re.match(r"\d+\. ", line)]
     assert len(numbered) == CANDIDATE_LIMIT
     # The newest survivor is first, and the oldest fell off the cap.
     assert f"Headline {CANDIDATE_LIMIT + 4}" in numbered[0]
@@ -244,6 +245,29 @@ def test_an_unparsable_answer_gives_the_raw_headlines_with_its_code(tmp_path):
     assert "A headline" in bulletins[0].text
     assert "unparsable answer" in bulletins[0].text
     assert mem.get("news") == {"seen": ["g1"]}
+
+
+def test_nothing_worth_sending_is_a_quiet_run_not_a_failure(tmp_path):
+    """The strict prompt will often find nothing; that sends nothing — not the English
+    fallback, and not a memory write, since no story was carried."""
+    read, _ = stub_read([story("g1", title="A device update")])
+    complete, _ = stub_llm(text="0|")
+    mem = memory(tmp_path)
+
+    bulletins = NewsProducer(settings(), mem, read=read, complete=complete).produce(NOW)
+
+    assert bulletins == []
+    assert mem.get("news") == {}
+
+
+def test_a_quiet_run_leaves_the_memory_file_alone(tmp_path):
+    read, _ = stub_read([story("g1", title="A device update")])
+    mem = memory(tmp_path)
+
+    NewsProducer(settings(), mem, read=read, complete=stub_llm(text="0|")[0]).produce(NOW)
+    mem.save()
+
+    assert not (tmp_path / "data" / "watchers.json").exists()
 
 
 def test_a_digest_marks_its_stories_seen_so_the_next_run_is_quiet(tmp_path):

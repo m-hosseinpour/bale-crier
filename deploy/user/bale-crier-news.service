@@ -17,8 +17,9 @@
 ; (and this timer with it) is torn down when the last session ends.
 ;
 ; TimeoutStartSec is raised well above systemd's 90-second default: a digest can wait out a feed
-; fetch, a model call and a Bale send in turn, so the unit must allow more than
-; CRIER_OPEN_AI_TIMEOUT plus the two CRIER_HTTP_TIMEOUT allowances. A run killed mid-wait would
+; fetch (tried twice), a model call and up to two Bale sends in turn, so the unit must allow more
+; than CRIER_OPEN_AI_TIMEOUT plus four CRIER_HTTP_TIMEOUT allowances — about 240 seconds at the
+; defaults. A run killed mid-wait would
 ; send nothing and leave no history line to say why, so keep this above their sum.
 
 [Unit]

@@ -88,6 +88,13 @@ class NewsProducer:
         if llm_read.text is not None:
             chosen = parse_answer(llm_read.text, candidates, max_items=max_items)
 
+        if chosen is not None and not chosen:
+            # The model read the candidates and found none of them worth sending.
+            # A quiet run is not a failure and costs no memory write: nothing was
+            # carried, so nothing is marked seen, and a story that grows into
+            # something important before it leaves the feed can still be picked.
+            return []
+
         batch = self._settings.news_batch_size
         if chosen is not None:
             carried = [item.story for item in chosen]

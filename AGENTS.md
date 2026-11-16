@@ -102,3 +102,5 @@ tests/          pytest
   bulletin landed, and a failed mark is left alone.
 - **Schedule times are literal in the timer unit.** systemd does not expand environment variables in
   a unit file, so a `CRIER_SCHEDULE_TIMES` would silently never fire.
+- **A digest that finds nothing sends nothing.** The model's `0|` answer is a quiet run, not a
+  failure; the English fallback is only for a broken or unparsable call.

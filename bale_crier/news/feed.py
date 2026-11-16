@@ -3,12 +3,14 @@
 The parse is a pure function and raises on a document it cannot read; the fetch is
 the boundary and turns every failure into a value. The split exists because a
 caller that cannot tell "unreadable" from "empty" would announce a broken feed as a
-quiet news day — the one reading the owner must never get.
+quiet news day — the one reading the owner must never get. A failed fetch is tried
+once more, because the host throttles or drops the connection every so often.
 
 Nothing here reads a setting or resolves the item's Google redirect link: the story
 carries the link as it came, and the owner's browser resolves it when he taps it.
 """
 
+import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from datetime import datetime
@@ -21,10 +23,16 @@ import requests
 from ..history import as_utc
 from ..models import Story
 
-# The owner's query, written here once and nowhere else.
+# The owner's query, written here once and nowhere else. Tightened on 2026-11-05: the
+# first query ("new features" OR "now available" OR "update" OR "version") led with
+# device updates and listicles, so the words that carry a model release or a big shift
+# lead now instead. This only decides what the model gets to see; the prompt decides
+# what is worth sending.
 DEFAULT_QUERY = (
-    '"new features" OR "now available" OR "update" OR "version" AI '
-    "(tool OR model) -investment -funding -startup -stocks when:1d"
+    'AI ("new model" OR releases OR launches OR unveils OR breakthrough '
+    'OR "state of the art" OR "major shift" OR "turning point" OR milestone '
+    'OR shock OR "first ever") '
+    "-investment -funding -startup -stocks -earnings -lawsuit when:1d"
 )
 DEFAULT_FEED_URL = "https://news.google.com/rss/search?q=" + quote(DEFAULT_QUERY)
 
@@ -38,9 +46,28 @@ class FeedRead(NamedTuple):
 
 FeedReader = Callable[..., FeedRead]
 
+# Google News rate-limits this machine and drops the connection now and then:
+# measured on 2026-11-16, three reads in a row answered 429, 200 and 429, and two
+# retried probes both answered 429. The second try gives a throttled or dropped
+# read another chance; a persistent refusal still reads as a failure.
+RETRY_DELAY = 3
+
 
 def fetch_feed(*, url: str, timeout: int = 30) -> FeedRead:
-    """The feed's stories, or ``None`` and a short error code. Never raises."""
+    """The feed's stories, or ``None`` and a short error code. Never raises.
+
+    A read is attempted twice: the owner should not hear about a one-request
+    throttle as if the feed were gone. The second failure is the one reported, so
+    a broken feed still speaks once, not twice.
+    """
+    read = _read_once(url=url, timeout=timeout)
+    if read.stories is not None:
+        return read
+    time.sleep(RETRY_DELAY)
+    return _read_once(url=url, timeout=timeout)
+
+
+def _read_once(*, url: str, timeout: int) -> FeedRead:
     try:
         response = requests.get(url, timeout=timeout)
     except requests.RequestException:

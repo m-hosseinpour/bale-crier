@@ -9,6 +9,7 @@ import requests
 from bale_crier.news.feed import (
     DEFAULT_FEED_URL,
     DEFAULT_QUERY,
+    RETRY_DELAY,
     fetch_feed,
     parse_feed,
 )
@@ -25,6 +26,12 @@ def isolated_env(monkeypatch, tmp_path):
     for name in list(os.environ):
         if name.startswith("CRIER_"):
             monkeypatch.delenv(name)
+
+
+@pytest.fixture(autouse=True)
+def no_retry_delay(monkeypatch):
+    """The retry's pause is real seconds; no test needs to spend them."""
+    monkeypatch.setattr("bale_crier.news.feed.time.sleep", lambda seconds: None)
 
 
 def fixture_bytes() -> bytes:
@@ -231,10 +238,91 @@ def test_a_transport_error_gives_an_error_and_raises_nothing(monkeypatch):
     assert read.error
 
 
+def test_a_failed_read_is_retried_once_and_the_second_answer_is_used(monkeypatch):
+    calls: list[str] = []
+    answers = [requests.ConnectionError("reset"), FakeResponse(fixture_bytes())]
+
+    def fake_get(url, timeout=None):
+        calls.append(url)
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    read = fetch_feed(url="https://example.test/feed", timeout=7)
+
+    assert read.error == ""
+    assert read.stories is not None
+    assert len(read.stories) == 54
+    assert len(calls) == 2
+
+
+def test_a_successful_read_is_not_retried(monkeypatch):
+    calls: list[str] = []
+    waits: list[int] = []
+
+    def fake_get(url, timeout=None):
+        calls.append(url)
+        return FakeResponse(fixture_bytes())
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr("bale_crier.news.feed.time.sleep", waits.append)
+
+    fetch_feed(url="https://example.test/feed")
+
+    assert len(calls) == 1
+    assert waits == []
+
+
+def test_the_retry_waits_before_the_second_read(monkeypatch):
+    waits: list[int] = []
+    answers = [requests.ConnectionError("reset"), FakeResponse(fixture_bytes())]
+
+    def fake_get(url, timeout=None):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr("bale_crier.news.feed.time.sleep", waits.append)
+
+    fetch_feed(url="https://example.test/feed", timeout=7)
+
+    assert waits == [RETRY_DELAY]
+
+
+def test_two_failed_reads_report_the_second_error(monkeypatch):
+    calls: list[str] = []
+    answers = [
+        FakeResponse(b"", status_code=503),
+        FakeResponse(b"", status_code=429),
+    ]
+    waits: list[int] = []
+
+    def fake_get(url, timeout=None):
+        calls.append(url)
+        return answers.pop(0)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr("bale_crier.news.feed.time.sleep", waits.append)
+
+    read = fetch_feed(url="https://example.test/feed", timeout=7)
+
+    assert read.stories is None
+    assert read.error == "HTTP 429"
+    assert len(calls) == 2
+    assert waits == [RETRY_DELAY]
+
+
 def test_the_default_query_is_the_owner_query_verbatim():
     assert DEFAULT_QUERY == (
-        '"new features" OR "now available" OR "update" OR "version" AI '
-        "(tool OR model) -investment -funding -startup -stocks when:1d"
+        'AI ("new model" OR releases OR launches OR unveils OR breakthrough '
+        'OR "state of the art" OR "major shift" OR "turning point" OR milestone '
+        'OR shock OR "first ever") '
+        "-investment -funding -startup -stocks -earnings -lawsuit when:1d"
     )
 
 

@@ -32,11 +32,19 @@ already has, and the digest is one of them.
 ## The source
 
 A Google News search, `https://news.google.com/rss/search?q=…`, whose query the owner owns and may
-tighten whenever he likes. The default is the query he gave on 2026-10-17:
+tighten whenever he likes. The default, tightened on 2026-11-05:
 
 ```
-"new features" OR "now available" OR "update" OR "version" AI (tool OR model) -investment -funding -startup -stocks when:1d
+AI ("new model" OR releases OR launches OR unveils OR breakthrough OR "state of the art"
+OR "major shift" OR "turning point" OR milestone OR shock OR "first ever")
+-investment -funding -startup -stocks -earnings -lawsuit when:1d
 ```
+
+The first default (the owner's query of 2026-10-17,
+`"new features" OR "now available" OR "update" OR "version" AI (tool OR model) …`) is gone: he
+asked on 2026-11-05 for only the most valuable news, and that query led with device updates and
+listicles. The query now carries the words a model release or a big shift is written with, and it
+only decides what the model gets to see; the prompt decides what is worth sending.
 
 Measured on 2026-10-17, so a later reader does not have to probe again:
 
@@ -55,11 +63,19 @@ Measured on 2026-10-17, so a later reader does not have to probe again:
 - **The feed is noisy and repeats itself.** The 53 items included a California legislative update
   and a Netflix story, and four different outlets carried the same DeepSeek release.
 
+Measured again on 2026-11-05 with the tightened query: the feed answers with **100 items** — Google's
+cap for one query — the 60 newest of them spanning about twenty hours, so the candidate cap costs at
+most the oldest few of a day, which an earlier run already saw. A dry run of the new prompt on that
+feed picked six stories out of 94 survivors (three model releases, a world model, an embodied-AI
+benchmark and a regulator's warning) and left the press releases alone.
+
 ## One run, step by step
 
 1. Fetch `CRIER_NEWS_FEED_URL` with `requests`, the project's `http_timeout`, and parse the XML
-   with the standard library's `ElementTree`. A transport error, a non-200 or unparsable XML is a
-   **feed failure** (below).
+   with the standard library's `ElementTree`. A failed read is tried once more after three seconds
+   (the host throttles and drops connections; measured 2026-11-16), and the second attempt's
+   outcome is the one used. A transport error, a non-200 or unparsable XML is a **feed failure**
+   (below).
 2. Turn each item into a `story`: `title`, `source`, `link`, `guid`, `published`. The title carries
    the source appended to it (`" - The Straits Times"`, sometimes `" - https://tech-insider.org/"`);
    it is stripped using that item's own `<source>`. A `<source>` that is a URL is shown by its
@@ -68,11 +84,11 @@ Measured on 2026-10-17, so a later reader does not have to probe again:
 4. Drop the stories whose guid is already in the **seen set**.
 5. If nothing is left, the run sends nothing: a day without news is not a failure.
 6. Hand the survivors, newest first, to the LLM, capped at `CANDIDATE_LIMIT` (60). Each survivor is
-   given to it as a number, its title and its source. It chooses the most important and writes one
-   short Persian line for each.
+   given to it as a number, its title and its source. It chooses only the stories that clear the
+   bar and writes one short Persian line for each — or answers `0|` alone, meaning none did.
 7. Render the bulletins: one per group of `CRIER_NEWS_BATCH_SIZE` stories, each a short Persian
    header, then its stories as their Persian lines, source names and Google News links.
-8. Add the chosen stories' guids to the seen set.
+8. Add the chosen stories' guids to the seen set. A quiet run adds none.
 
 ## The hard filter and the model
 
@@ -85,26 +101,47 @@ when that is empty the built-in default is used —
 `funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings, iPhone, iOS, Android,
 gaming, laptop, laptops, GPU, driver, drivers, DLSS, Fitbit, Sims, Chrome, Netflix`. The first
 eight are news types the owner does not want; the rest are consumer-device words, added after
-measuring three days of feeds, where the phrasing `new features`/`now available`/`update` pulled
-in phone, gaming and driver releases. Matching is whole-word, so the plural forms that the titles
-used are listed too. A domain blocklist was
-considered and dropped: the owner chose words only.
+measuring three days of feeds, where the query then in use pulled in phone, gaming and driver
+releases. Matching is whole-word, so the plural forms that the titles used are listed too. A domain
+blocklist was considered and dropped: the owner chose words only.
 
 **The model** then reads the survivors and returns the digest in one call, which the code renders as
 several bulletins (one per group). One call per run, not per message: the prompt is written for the
-whole digest, and a call per group would ask the model to rank the day's news again and again. It is told to keep each headline's meaning with no claim of its own added, to write fresh
-Persian with a correct U+200C in every half-space word, to put the most important first, to choose
-at most `CRIER_NEWS_MAX_ITEMS` (default 10), and to carry one story per event — which is the only
-place the four outlets carrying one DeepSeek release are collapsed, since the seen set works by guid
-and those are four guids.
+whole digest, and a call per group would ask the model to rank the day's news again and again.
+
+It is not asked for "the most important of what is here" — that instruction filled the digest with
+whatever the feed happened to carry. On 2026-11-05 the owner asked for a far stricter bar: only news
+that is genuinely valuable reaches him. The prompt now names four categories that qualify and
+everything else that must be dropped:
+
+| qualifies | does not |
+| --- | --- |
+| a new AI model, especially a frontier or open-weight one | a product or feature announcement, a minor version |
+| a leap in capability — a record broken, a problem solved | funding, a commercial deal, an earnings report |
+| an event whose impact goes past one company or device | a list, a how-to, a rumour, a prediction |
+| a serious documented warning from a credible body | anything confined to one company, device or market |
+
+It is still told to keep each headline's meaning with no claim of its own added, to write fresh
+Persian with a correct U+200C in every half-space word, to put the most important first, to choose at
+most `CRIER_NEWS_MAX_ITEMS` (default 10 — fewer is the normal case now), and to carry one story per
+event — which is the only place the several outlets carrying one release are collapsed, since the
+seen set works by guid and those are separate guids.
+
+**A quiet run is a real answer.** When no candidate clears the bar the model is told to answer
+`0|` and nothing else. Its index is 0, which no story ever has, so it cannot be mistaken for one; the
+parser accepts it only as the whole answer, which keeps a truncated or garbled call a **model
+failure** rather than a false quiet day. An empty selection sends nothing and marks nothing seen, so
+a story that grows into something important before it leaves the feed can still be picked by a later
+run.
 
 **The model answers with indices, not links.** Each answer line is `<index>|<Persian sentence>`,
 where `<index>` is the story's number in the list it was given. The code maps the index back to the
 real title, source and link, so a model that invents a link is impossible rather than merely
 unlikely. Parsing splits each line on its **first** `|`, so a `|` inside the Persian sentence is
 harmless. An index out of range, a line that does not parse, or an answer with no usable line at all
-is a **model failure** (below). The order of the answer is the order of the message, and the code
-truncates it to `CRIER_NEWS_MAX_ITEMS` however many lines the model returned.
+is a **model failure** (below); `0|` alone is the empty selection, not a failure. The order of the
+answer is the order of the message, and the code truncates it to `CRIER_NEWS_MAX_ITEMS` however many
+lines the model returned.
 
 ## What goes out
 
@@ -163,12 +200,15 @@ that every string reaching the owner is Persian.
 
 | what happened | what goes to Bale |
 | --- | --- |
-| the feed could not be read | one short Persian bulletin saying so, naming the short error code |
+| the feed could not be read (two attempts) | one short Persian bulletin saying so, naming the short error code, and stating that this was a failed read and not a quiet day |
 | the model failed, or its answer did not parse | the raw headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors, in English, each with its source and link, split into the same groups, each message ending with one Persian line saying the rewording did not happen and the call's short error code |
+| the model found nothing worth sending (`0|`) | nothing |
 | the feed was read but no story survived | nothing |
 
 A failed read is never announced as "there was no news": *"I cannot tell" stays "I cannot tell"*,
-the rule the credit watcher already follows. The digest runs three times a day, so a broken feed speaks at
+the rule the credit watcher already follows. Because a quiet run sends nothing at all, the
+failed-read bulletin says in words that it is a failed read and not a quiet day; the two states
+must never be confusable. The digest runs three times a day, so a broken feed speaks at
 most three times a day and needs no throttle of its own — the window the credit watcher has exists because
 that watcher runs hourly.
 
@@ -183,7 +223,8 @@ bookkeeping about the feed. It is written by `produce`, and `run_once` saves the
 every send landed — so a crash between the two, or one refused group, costs a re-send of the whole
 digest next run, the safe direction. The re-send is noisy but never loses a story; the feed's
 `when:1d` window means a story dropped from the feed by tomorrow is one the owner is no longer
-waiting for.
+waiting for. A quiet run carries nothing and writes nothing: the model's "not worth sending" is not
+recorded, so a story can still be picked later if it becomes the day's big news.
 
 ## Scheduling
 
@@ -233,16 +274,20 @@ at `tests/fixtures/news_feed.xml`, captured live on 2026-10-17 — so the parser
 the real shape rather than one invented for the test.
 Covered: parsing into stories (title, source, link, guid, published), the title's source suffix and
 a URL-shaped source, the word-boundary filter, the seen-set filter and its cap, the candidate cap
-and the newest-first order, the prompt, the index-and-sentence answer's parse including a bad index
-and an unparsable line, the rendered message, both failure bulletins, the producer's wiring, and the
-`--only news` CLI path. The live Bale send is verified by hand once, like every milestone.
+and the newest-first order, the feed read's single retry, the prompt, the index-and-sentence
+answer's parse including a bad index
+and an unparsable line, the `0|` empty selection and the quiet run it produces, the rendered message,
+both failure bulletins, the producer's wiring, and the `--only news` CLI path. The live Bale send is
+verified by hand once, like every milestone.
 
 ## Still open
 
 - The digest shipped once a day at 09:00; on 2026-10-29 the owner made it three times a day, at
   09:00, 15:00 and 21:00.
-- The query is the owner's to tighten. The default is the one given on 2026-10-17; the first digests
-  will show whether the filter words need adding.
+- The query is the owner's to tighten. The default was rewritten on 2026-11-05 for the stricter bar;
+  the digests that follow will show whether its words need adding or dropping.
+- How strict is strict enough is the owner's call, and only his reading of the digests answers it.
+  The bar now lives in the prompt and in nothing else, so it moves without a code change.
 - The feed is parsed with the standard library's `ElementTree`, which is not hardened against
   hostile XML. The feed is one known host, so nothing is done about it now; if the URL ever becomes
   free-form, it becomes a real concern.

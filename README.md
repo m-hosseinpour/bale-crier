@@ -225,7 +225,8 @@ the months, re-align them the same way and the half hour is honest again.
 
 ## The news digest
 
-The digest arrives as messages of at most five AI-news stories each. It reads a Google News RSS
+The digest arrives as messages of at most five AI-news stories each, and often it does not arrive at
+all: only news the owner would call genuinely valuable gets through. It reads a Google News RSS
 search — `CRIER_NEWS_FEED_URL`, whose default is the owner's query — and parses it into stories. It
 then drops what the owner does not want to read before the model ever sees it.
 
@@ -233,22 +234,29 @@ then drops what the owner does not want to read before the model ever sees it.
 case-insensitive and on word boundaries; when the setting is empty the built-in default is used:
 `funding, raises, valuation, lawsuit, ban, regulation, layoffs, earnings, iPhone, iOS, Android,
 gaming, laptop, laptops, GPU, driver, drivers, DLSS, Fitbit, Sims, Chrome, Netflix` — the first
-eight are news types the owner does not want, the rest are consumer-device words, because the
-feed's phrasing also matches phone, gaming and driver releases. **The seen set** then
-drops the stories the digest already carried. It is the producer's own memory, in
-`CRIER_WATCHERS_STATE_PATH` under the name `news`, holding the guids the digest carried, newest
-last and capped at 500 — deliberately separate from the history, which records what the owner read.
+eight are news types the owner does not want, the rest are consumer-device words, because an earlier
+query also matched phone, gaming and driver releases. **The seen set** then drops the stories the
+digest already carried. It is the producer's own memory, in `CRIER_WATCHERS_STATE_PATH` under the
+name `news`, holding the guids the digest carried, newest last and capped at 500 — deliberately
+separate from the history, which records what the owner read.
 
-What survives goes to the model newest first, capped at 60 candidates; it picks at most
-`CRIER_NEWS_MAX_ITEMS` (default 10) and writes one short Persian line for each, answering with
-indices the code maps back to the real title, source and link — so a model that invents a link is
-impossible rather than merely unlikely. Each message is a fixed Persian header, then its stories
-numbered with Persian digits as their Persian line, then `منبع: [<source>](<link>)`. Bale formats
-every message as Markdown, so the address hides behind the source name rather than filling the line
-with three hundred characters of Google News redirect; a story with no source shows the label
-«لینک خبر» instead. The address itself is still in the text — which is what the 4096-character
-count sees — and it is a Google News redirect, never the publisher's URL: the server never resolves
-it, the owner's browser does when he taps it.
+What survives goes to the model newest first, capped at 60 candidates. **It is a bar, not a ranking:**
+the prompt names the four things worth sending — a new AI model (especially a frontier or open-weight
+one), a leap in capability, an event whose impact goes past one company or device, and a serious
+warning from a credible body — and tells the model to drop everything else: product and feature news,
+minor versions, funding, commercial deals, earnings, lists, how-tos, rumours, and anything confined to
+one company or device. It picks at most `CRIER_NEWS_MAX_ITEMS` (default 10, though a strict run
+usually carries two or three, and often none) and writes one short Persian line for each, answering
+with indices the code maps back to the real title, source and link — so a model that invents a link is
+impossible rather than merely unlikely. When nothing clears the bar it answers `0|` alone and the run
+sends nothing; that quiet run is a real answer, not a failure, and it marks nothing seen, so a story
+can still be picked later if it grows into the day's big news. Each message is a fixed Persian
+header, then its stories numbered with Persian digits as their Persian line, then
+`منبع: [<source>](<link>)`. Bale formats every message as Markdown, so the address hides behind the
+source name rather than filling the line with three hundred characters of Google News redirect; a
+story with no source shows the label «لینک خبر» instead. The address itself is still in the text —
+which is what the 4096-character count sees — and it is a Google News redirect, never the publisher's
+URL: the server never resolves it, the owner's browser does when he taps it.
 
 **The stories go out in groups of `CRIER_NEWS_BATCH_SIZE`** (default 5), each message restarting its
 numbering at ۱, so ten stories arrive as two messages of five. The split is not only the owner's
@@ -259,11 +267,13 @@ and never seen in the chat, while every send that landed was under 4000. A group
 4000 characters therefore closes early and the rest goes in the next message; only a story that alone
 crosses the limit ships uncut, because cutting it would break the link.
 
-Two failures speak, and a quiet day does not. A feed that cannot be read sends one short Persian
-line naming the short error code, and never claims there was no news — "I cannot tell" stays
-"I cannot tell". A model that fails, or an answer that does not parse, sends the raw English
-headlines of the newest `CRIER_NEWS_MAX_ITEMS` survivors with their sources and links, in the same
-groups, each message carrying the Persian line that names the failure and the call's code. A feed
+Two failures speak, and a quiet day does not. A feed read that fails is retried once after three
+seconds, because Google News throttles or drops the connection now and then; if both reads fail, one
+short Persian line names the short error code and says plainly that this was a failed read, not a
+quiet day — "I cannot tell" stays "I cannot tell", and a quiet run is silent. A model that fails, or
+an answer that does not parse, sends the raw English headlines of the newest `CRIER_NEWS_MAX_ITEMS`
+survivors with their sources and links, in the same groups, each message carrying the Persian line
+that names the failure and the call's code. A feed
 that was read with nothing left sends nothing: a day without news is not a failure.
 
 The digest owns a timer of its own, `bale-crier-news.timer`, three times a day at 09:00, 15:00 and 21:00, so the
