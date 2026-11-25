@@ -242,8 +242,8 @@ the two cannot race over one seen set.
 | `CRIER_NEWS_BATCH_SIZE` | the most stories in one message (default 5, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
-The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` — or `CRIER_AVALAI_API_KEY`, which it inherits
-— must be set. Without a key the producer is not registered, exactly as the note producer is not,
+The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` must be set; it does not fall back to
+`CRIER_AVALAI_API_KEY`. Without a key the producer is not registered, exactly as the note producer is not,
 and the CLI says so in Persian. A *failing* call is the raw-headline case above; a *missing* key is
 not, so the digest does not quietly start arriving in English every day.
 

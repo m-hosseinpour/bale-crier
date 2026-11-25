@@ -82,15 +82,6 @@ class Settings(BaseSettings):
     news_blocklist: str = ""
 
     @model_validator(mode="after")
-    def _inherit_the_llm_key(self) -> "Settings":
-        # One AvalAI key covers both the credit read and the rewording, so an empty
-        # CRIER_OPEN_AI_API_KEY takes the other one rather than making the owner
-        # paste the same secret twice. An explicit key always wins.
-        if not self.open_ai_api_key:
-            self.open_ai_api_key = self.avalai_api_key or None
-        return self
-
-    @model_validator(mode="after")
     def _default_the_feed_url(self) -> "Settings":
         # A shipped `CRIER_NEWS_FEED_URL=` would otherwise be read as an empty URL
         # rather than as "unset", so every fetch would fail. Empty means the

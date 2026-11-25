@@ -331,9 +331,11 @@ Enable the **timers**, not the services — each service is a oneshot with no `[
 enabling it alone does nothing. Run `sudo loginctl enable-linger $USER` once, or the user manager
 (and the timers with it) is torn down when the last session ends.
 
-The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id and
-`CRIER_AVALAI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. `CRIER_OPEN_AI_API_KEY` is
-left empty there and inherits that same key, so the rewording works without a second copy of it.
+The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id,
+`CRIER_AVALAI_API_KEY` and `CRIER_OPEN_AI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`.
+The two keys are separate: the credit key is only for the credit read, and the model key is only
+for the rewording and the digest, so a missing model key leaves those two producers off even when
+the credit key is set.
 `WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
 `watchers_state_path` point. The two units that call the model — `bale-crier.service` and
 `bale-crier-news.service` — set `TimeoutStartSec=300`, above systemd's 90-second default, so a run

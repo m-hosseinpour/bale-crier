@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     if notes_wanted and not settings.open_ai_api_key:
         print(
             "بازنویسی یادداشت‌ها بدون کلید مدل ممکن نیست: "
-            "CRIER_OPEN_AI_API_KEY (یا CRIER_AVALAI_API_KEY) تنظیم نشده است.",
+            "CRIER_OPEN_AI_API_KEY تنظیم نشده است.",
             file=sys.stderr,
         )
     if notes_wanted and not settings.lists_dir.is_dir():
@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.only and NEWS in args.only and not settings.open_ai_api_key:
         print(
             "خبرنامه بدون کلید مدل ساخته نمی\u200cشود: "
-            "CRIER_OPEN_AI_API_KEY (یا CRIER_AVALAI_API_KEY) تنظیم نشده است.",
+            "CRIER_OPEN_AI_API_KEY تنظیم نشده است.",
             file=sys.stderr,
         )
     if args.only and CHANGEDETECTION in args.only and not settings.changedetection_api_key:

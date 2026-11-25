@@ -281,7 +281,7 @@ There are therefore five timers: `bale-crier.timer` for the note bulletins,
 | `CRIER_HISTORY_MAX_LINES` | the history cap |
 | `CRIER_RUNS_PATH` | the run log (default `data/runs.jsonl`) |
 | `CRIER_RUNS_MAX_LINES` | the run-log cap (default 1000) |
-| `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM (`CRIER_OPEN_AI_API_KEY` inherits `CRIER_AVALAI_API_KEY` when empty) |
+| `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM (its own key; it does not fall back to `CRIER_AVALAI_API_KEY`) |
 | `CRIER_OPEN_AI_TIMEOUT` | how long a model call may take (default 120; the model is a reasoning model and needs tens of seconds, where `CRIER_HTTP_TIMEOUT` is a Bale-sized allowance) |
 | `CRIER_AVALAI_API_KEY` | what the credit watcher reads |
 | `CRIER_CREDIT_THRESHOLD_IRT` | the credit threshold (default 50,000) |

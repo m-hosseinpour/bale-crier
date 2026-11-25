@@ -11,7 +11,7 @@
 ;
 ; WorkingDirectory matters: the default watchers_state_path and history_path are relative,
 ; and a run started elsewhere would keep its seen set in the wrong place. It is also where the
-; .env holding the token, the chat id and CRIER_AVALAI_API_KEY is read from.
+; .env holding the token, the chat id and CRIER_OPEN_AI_API_KEY is read from.
 ;
 ; Linger must be on — `sudo loginctl enable-linger $USER` — otherwise the user manager
 ; (and this timer with it) is torn down when the last session ends.

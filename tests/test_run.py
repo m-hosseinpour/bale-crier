@@ -362,6 +362,17 @@ def test_the_note_run_leaves_the_disk_watcher_out(tmp_path):
     assert [producer.name for producer in producers] == ["note"]
 
 
+def test_the_credit_key_alone_builds_no_model_producers(tmp_path):
+    """The AvalAI key pays for the credit read; the model producers need their own."""
+    producers = build_producers(
+        settings(avalai_api_key="credit-key"),
+        memory=memory(tmp_path),
+        only=["note", "news"],
+    )
+
+    assert producers == []
+
+
 def test_a_disk_alert_is_recorded_in_the_history(tmp_path, monkeypatch):
     stub_disk(monkeypatch, GIB)
     send, calls = stub_sender(SendResult(ok=True))
@@ -574,8 +585,8 @@ def test_main_says_in_persian_when_the_lists_directory_is_missing(
 ):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-    # A key, so the line about the key is not the one under test.
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+    # A model key, so the line about the key is not the one under test.
+    monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "llm-key")
 
     code = main([])
 
@@ -631,12 +642,28 @@ def test_only_news_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, ca
     assert "Traceback" not in captured.err
 
 
+def test_only_news_does_not_take_the_credit_key_as_its_model_key(
+    monkeypatch, tmp_path, capsys
+):
+    """The AvalAI key pays for the credit read; it does not turn on the digest."""
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+
+    code = main(["--only", "news"])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "CRIER_OPEN_AI_API_KEY" in captured.err
+    assert "CRIER_AVALAI_API_KEY" not in captured.err
+
+
 def test_only_news_does_not_warn_about_notes_it_never_asked_for(
     monkeypatch, tmp_path, capsys
 ):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
+    monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "llm-key")
     stub_feed(monkeypatch)
     # One HTTP stub covers both posts: Bale reads `ok`, the LLM reads `choices`.
     monkeypatch.setattr(

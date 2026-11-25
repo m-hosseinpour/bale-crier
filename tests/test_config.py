@@ -202,29 +202,28 @@ def test_a_zero_disk_reminder_window_is_refused(monkeypatch):
     assert "CRIER_DISK_REMINDER_HOURS" in str(caught.value)
 
 
-def test_the_llm_key_is_inherited_from_the_avalai_key(monkeypatch):
-    """One key covers the credit read and the rewording, so the owner pastes it once."""
+def test_the_llm_key_is_not_inherited_from_the_avalai_key(monkeypatch):
+    """The credit key and the model key are separate: one does not turn on the other."""
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
     monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-shared")
 
     settings = load_settings()
 
-    assert settings.open_ai_api_key == "aa-shared"
+    assert settings.open_ai_api_key is None
     assert settings.avalai_api_key == "aa-shared"
 
 
-def test_an_empty_llm_key_still_inherits_the_avalai_key(monkeypatch):
-    """`.env.example` ships CRIER_OPEN_AI_API_KEY empty, which must not win."""
+def test_an_empty_llm_key_does_not_fall_back_to_the_avalai_key(monkeypatch):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
     monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-shared")
     monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "")
 
-    assert load_settings().open_ai_api_key == "aa-shared"
+    assert not load_settings().open_ai_api_key
 
 
-def test_an_explicit_llm_key_wins_over_the_inherited_one(monkeypatch):
+def test_the_llm_key_is_read_on_its_own(monkeypatch):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
     monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-credit")
