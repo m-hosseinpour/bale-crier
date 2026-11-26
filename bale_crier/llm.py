@@ -38,7 +38,11 @@ def complete(
         response = requests.post(
             url,
             headers={"Authorization": f"Bearer {key}"},
-            json={"model": model, "messages": messages},
+            # Explicitly false, never left unset: a 9router combo reads an unset
+            # stream as "stream", and an upstream that answers with a plain JSON
+            # body under an event-stream header then reads as an empty answer —
+            # the combo skips a working model and fails on the next one.
+            json={"model": model, "messages": messages, "stream": False},
             timeout=timeout,
         )
     except requests.RequestException:

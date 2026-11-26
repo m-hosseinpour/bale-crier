@@ -42,8 +42,18 @@ def test_the_request_is_a_post_carrying_the_bearer_key_and_the_messages(monkeypa
 
     assert captured["url"] == BASE + CHAT_PATH
     assert captured["headers"]["Authorization"] == "Bearer SECRET"
-    assert captured["json"] == {"model": "deepseek-v4-flash", "messages": MESSAGES}
+    assert captured["json"] == {"model": "deepseek-v4-flash", "messages": MESSAGES, "stream": False}
     assert captured["timeout"] == 30
+
+
+def test_the_request_never_leaves_stream_unset(monkeypatch):
+    """A 9router combo reads an unset stream as a stream and then mistakes a JSON
+    answer under that header for an empty one, skipping the model that answered."""
+    captured = stub_post(monkeypatch, FakeResponse({"choices": [{"message": {"content": "x"}}]}))
+
+    complete(MESSAGES, key="k", model="m")
+
+    assert captured["json"]["stream"] is False
 
 
 def test_the_caller_can_override_base_url_and_timeout(monkeypatch):
