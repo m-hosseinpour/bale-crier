@@ -12,21 +12,19 @@ from .news.producer import NewsProducer
 from .notes.producer import NoteProducer
 from .producers import Producer, SmokeProducer
 from .runs import append as append_run
-from .watchers.avalai_credit import CreditWatcher
 from .watchers.changedetection import ChangedetectionWatcher
 from .watchers.disk import DiskWatcher
 
 Sender = Callable[..., SendResult]
 
 SMOKE = SmokeProducer.name
-CREDIT = CreditWatcher.name
 DISK = DiskWatcher.name
 CHANGEDETECTION = ChangedetectionWatcher.name
 NOTE = NoteProducer.name
 NEWS = NewsProducer.name
 
 # Every name `--only` may name, whether or not this run can build it.
-KNOWN_PRODUCERS = (SMOKE, CREDIT, DISK, CHANGEDETECTION, NOTE, NEWS)
+KNOWN_PRODUCERS = (SMOKE, DISK, CHANGEDETECTION, NOTE, NEWS)
 
 # A sender that failed without a word — an empty `error` — still gets a line in the
 # journal, and an empty one there would read as a bug in the reporting.
@@ -42,9 +40,6 @@ def build_producers(
     available: dict[str, Producer] = {}
     if settings.smoke:
         available[SmokeProducer.name] = SmokeProducer()
-    # No key means the watcher cannot read anything, so it is not registered.
-    if settings.avalai_api_key:
-        available[CreditWatcher.name] = CreditWatcher(settings, memory)
     # The disk needs no key and no network, so it is always registered.
     available[DiskWatcher.name] = DiskWatcher(settings, memory)
     # Without the API key changedetection refuses every read, so the watcher is not

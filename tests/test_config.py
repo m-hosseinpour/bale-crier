@@ -65,13 +65,10 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     # The model's own allowance, well above the HTTP timeout: it is a reasoning
     # model, and at 30s every call would be cut off and degrade to the fallback.
     assert settings.open_ai_timeout == 120
-    assert settings.avalai_api_key is None
-    assert settings.credit_threshold_irt == 50_000
     assert settings.disk_path == Path("/")
     assert settings.disk_threshold_gib == 2
     assert settings.disk_reminder_hours == 24
     assert settings.watchers_state_path == Path("data/watchers.json")
-    assert settings.credit_unknown_alert_hours == 24
     # The loopback port, not the public hostname: Caddy and TLS are not on the path.
     assert settings.changedetection_url == "http://127.0.0.1:5005"
     assert settings.changedetection_api_key is None
@@ -124,44 +121,12 @@ def test_a_run_log_cap_below_one_is_refused(monkeypatch):
     assert "CRIER_RUNS_MAX_LINES" in str(caught.value)
 
 
-def test_the_credit_settings_take_their_values_from_the_environment(monkeypatch):
+def test_the_watchers_state_path_takes_its_value_from_the_environment(monkeypatch):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_CREDIT_THRESHOLD_IRT", "75000")
     monkeypatch.setenv("CRIER_WATCHERS_STATE_PATH", "state/watchers.json")
-    monkeypatch.setenv("CRIER_CREDIT_UNKNOWN_ALERT_HOURS", "6")
-    monkeypatch.setenv("CRIER_CREDIT_EXPIRY_WARNING_HOURS", "12")
 
-    settings = load_settings()
-
-    assert settings.credit_threshold_irt == 75000
-    assert settings.watchers_state_path == Path("state/watchers.json")
-    assert settings.credit_unknown_alert_hours == 6
-    assert settings.credit_expiry_warning_hours == 12
-
-
-def test_a_zero_unknown_alert_window_is_refused(monkeypatch):
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_CREDIT_UNKNOWN_ALERT_HOURS", "0")
-
-    with pytest.raises(ConfigError) as caught:
-        load_settings()
-
-    message = str(caught.value)
-    assert "CRIER_CREDIT_UNKNOWN_ALERT_HOURS" in message
-    assert any("\u0600" <= char <= "\u06ff" for char in message)
-
-
-def test_a_zero_expiry_warning_window_is_refused(monkeypatch):
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_CREDIT_EXPIRY_WARNING_HOURS", "0")
-
-    with pytest.raises(ConfigError) as caught:
-        load_settings()
-
-    assert "CRIER_CREDIT_EXPIRY_WARNING_HOURS" in str(caught.value)
+    assert load_settings().watchers_state_path == Path("state/watchers.json")
 
 
 def test_the_disk_settings_take_their_values_from_the_environment(monkeypatch):
@@ -202,37 +167,12 @@ def test_a_zero_disk_reminder_window_is_refused(monkeypatch):
     assert "CRIER_DISK_REMINDER_HOURS" in str(caught.value)
 
 
-def test_the_llm_key_is_not_inherited_from_the_avalai_key(monkeypatch):
-    """The credit key and the model key are separate: one does not turn on the other."""
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-shared")
-
-    settings = load_settings()
-
-    assert settings.open_ai_api_key is None
-    assert settings.avalai_api_key == "aa-shared"
-
-
-def test_an_empty_llm_key_does_not_fall_back_to_the_avalai_key(monkeypatch):
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-shared")
-    monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "")
-
-    assert not load_settings().open_ai_api_key
-
-
 def test_the_llm_key_is_read_on_its_own(monkeypatch):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-credit")
     monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "aa-llm")
 
-    settings = load_settings()
-
-    assert settings.open_ai_api_key == "aa-llm"
-    assert settings.avalai_api_key == "aa-credit"
+    assert load_settings().open_ai_api_key == "aa-llm"
 
 
 def test_the_news_settings_default_to_the_owners_query(monkeypatch):

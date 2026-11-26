@@ -1,8 +1,8 @@
 """One reminder window, shared by the watchers that can repeat themselves.
 
-The credit, disk and changedetection watchers all answer the same question about a
-timestamp they wrote last time: has the window the owner set passed? The rule that
-makes it safe is the same in all three, so it lives here once.
+The disk and changedetection watchers answer the same question about a timestamp
+they wrote last time: has the window the owner set passed? The rule that makes it
+safe is the same in both, so it lives here once.
 """
 
 from datetime import datetime, timedelta

@@ -198,16 +198,16 @@ def test_a_built_producer_that_produces_nothing_still_records_a_line(tmp_path, m
 
 
 def test_a_run_with_no_producer_still_records_a_line(tmp_path):
-    """`--only credit` without a key builds nothing; the scope ran, and the log must
-    let the dashboard say so rather than showing a timer that never fired."""
+    """`--only changedetection` without a key builds nothing; the scope ran, and the
+    log must let the dashboard say so rather than showing a timer that never fired."""
     send, calls = stub_sender(SendResult(ok=True))
 
-    run_once(settings(), now=NOW, send=send, only=["credit"])
+    run_once(settings(), now=NOW, send=send, only=["changedetection"])
 
     assert calls == []
     records = read_all(path=tmp_path / "data" / "runs.jsonl")
     assert len(records) == 1
-    assert records[0].only == ["credit"]
+    assert records[0].only == ["changedetection"]
     assert records[0].producers == []
 
 

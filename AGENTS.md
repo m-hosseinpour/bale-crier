@@ -1,22 +1,21 @@
 # bale-crier
 
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
-alerts about external state (AvalAI credit exhausted, and similar), notes drawn from his own
-lists, expanded by an LLM into a couple of Persian sentences (not one) without practical tips and
-sent once a day at 07:00, and a digest of AI news three times a day, picked and written in Persian.
-Lessons come later.
+alerts about external state (free disk space below a threshold, a watched page changing, and
+similar), notes drawn from his own lists, expanded by an LLM into a couple of Persian sentences
+(not one) without practical tips and sent once a day at 07:00, and a digest of AI news three times
+a day, picked and written in Persian. Lessons come later.
 
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
 so no abstraction is owed to a channel that does not exist.
 
-**Status:** milestones 1–6 are built — the path end to end, the AvalAI credit watcher (the balance
-threshold, and a weekly package inside `CRIER_CREDIT_EXPIRY_WARNING_HOURS` of lapsing), the owner's
-lists (reading them, choosing a note, rewording it), the news digest (the Google News feed, the hard
-filter and the seen set, the model's selection), the disk watcher (free space below a threshold,
-hourly, with a latch and a daily reminder), and the changedetection watcher (the pages
-changedetection.io watches, every three hours, one message naming what changed). All five timers are
-enabled and scheduled. The note timer runs once a day at 07:00 and sends one note per run from
-`lists/`.
+**Status:** milestones 1 and 3–6 are built — the path end to end, the owner's lists (reading them,
+choosing a note, rewording it), the news digest (the Google News feed, the hard filter and the seen
+set, the model's selection), the disk watcher (free space below a threshold, hourly, with a latch
+and a daily reminder), and the changedetection watcher (the pages changedetection.io watches, every
+three hours, one message naming what changed). Milestone 2, the AvalAI credit watcher, was built
+and then removed on 2026-11-26. All four remaining timers are enabled and scheduled. The note timer
+runs once a day at 07:00 and sends one note per run from `lists/`.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must
@@ -42,7 +41,7 @@ same thing.
 | `list` | one Markdown file of notes |
 | `note` | one item in a list: a `## id` heading plus the body under it |
 | `bulletin` | one message that actually goes to Bale, of any kind |
-| `watcher` | something external under observation (AvalAI credit, free disk space, the pages changedetection.io watches) |
+| `watcher` | something external under observation (free disk space, the pages changedetection.io watches) |
 | `watch` | one page under observation in changedetection.io, with its own `last_changed` |
 | `story` | one entry in the news feed: a headline, its source and its link (not a `note`) |
 | `schedule` | when a run happens |
@@ -57,7 +56,7 @@ bulletin's text, and the history records both facts separately.
 | install | `uv sync` |
 | test | `uv run pytest` |
 | one run | `uv run python -m bale_crier` |
-| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer` |
+| deploy | copy `deploy/user/*` to `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now bale-crier.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer` |
 
 Linger must be on — `sudo loginctl enable-linger $USER` — or the user timer is torn down with the
 last session.
@@ -91,8 +90,8 @@ tests/          pytest
 
 - **The owner's content never enters git.** `lists/` is gitignored; only `lists.example/` is
   committed.
-- **"I cannot tell" is never "it is gone".** A failed AvalAI credit read is a failure, not an empty
-  account, and the bot must not add buying advice or a "nearly out" colour of its own.
+- **"I cannot tell" is never "it is gone".** A failed disk or changedetection read is a failure, not
+  "the disk is full" or "nothing changed", and the bot must not add advice of its own.
 - **Bale is reached from one module only** — `bale_crier/bale.py`. A second path to the API is a bug.
 - **History is append-only.** No read-modify-write of the whole file, so a crash cannot lose what was
   already recorded.

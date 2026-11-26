@@ -40,12 +40,10 @@ class Settings(BaseSettings):
     open_ai_model: str = "deepseek-v4-flash"
     open_ai_api_key: str | None = None
     # The model is a reasoning model and takes tens of seconds to answer where a
-    # Bale or credit call takes milliseconds, so it gets its own allowance: at the
+    # Bale or feed call takes milliseconds, so it gets its own allowance: at the
     # project's HTTP timeout every model call would be cut off and degrade to the
     # fallback text without a word about why.
     open_ai_timeout: int = Field(default=120, ge=1)
-    avalai_api_key: str | None = None
-    credit_threshold_irt: float = Field(default=50_000, ge=0)
     # The whole machine is one filesystem here (`/`), so that is what the disk
     # watcher reads unless the owner points it somewhere else.
     disk_path: Path = Path("/")
@@ -55,11 +53,6 @@ class Settings(BaseSettings):
     # Bounded above zero: a window of zero would repeat the reminder every hour.
     disk_reminder_hours: float = Field(default=24, gt=0)
     watchers_state_path: Path = Path("data/watchers.json")
-    # Bounded above zero: a window of zero would speak on every failed read.
-    credit_unknown_alert_hours: float = Field(default=24, gt=0)
-    # How long before a weekly package lapses the owner hears about it, in hours.
-    # Bounded above zero: a window of zero is never entered, so it would say nothing.
-    credit_expiry_warning_hours: float = Field(default=24, gt=0)
     # The local port, not the public hostname: the watcher talks to changedetection
     # on the loopback, so Caddy and TLS are not on the path and a public outage
     # cannot silence the watch.
@@ -67,7 +60,7 @@ class Settings(BaseSettings):
     # The API key changedetection shows in its own settings. No key means the API
     # refuses every read, so the watcher is not registered without one.
     changedetection_api_key: str | None = None
-    # Bounded above zero, for the same reason as the credit window.
+    # Bounded above zero, for the same reason as the disk reminder window.
     changedetection_unknown_alert_hours: float = Field(default=24, gt=0)
     # The default lives in `news/feed.py`, where the feed's URL shape has its one
     # home, so the query is not written out twice.

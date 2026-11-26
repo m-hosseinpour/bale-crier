@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 
 from .config import ConfigError, load_settings
-from .run import CHANGEDETECTION, CREDIT, KNOWN_PRODUCERS, NEWS, NOTE, run_once
+from .run import CHANGEDETECTION, KNOWN_PRODUCERS, NEWS, NOTE, run_once
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,8 +19,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=KNOWN_PRODUCERS,
         metavar="NAME",
         help=(
-            "run only this producer; repeatable. The credit, disk and "
-            "changedetection watchers and the news digest have timers of their own."
+            "run only this producer; repeatable. The disk and changedetection "
+            "watchers and the news digest have timers of their own."
         ),
     )
     try:
@@ -48,11 +48,6 @@ def main(argv: list[str] | None = None) -> int:
     if notes_wanted and not settings.lists_dir.is_dir():
         print(
             f"پوشهٔ لیست‌ها پیدا نشد: {settings.lists_dir}؛ یادداشتی فرستاده نمی‌شود.",
-            file=sys.stderr,
-        )
-    if args.only and CREDIT in args.only and not settings.avalai_api_key:
-        print(
-            "ناظر اعتبار بدون کلید اجرا نمی‌شود: CRIER_AVALAI_API_KEY تنظیم نشده است.",
             file=sys.stderr,
         )
     if args.only and NEWS in args.only and not settings.open_ai_api_key:

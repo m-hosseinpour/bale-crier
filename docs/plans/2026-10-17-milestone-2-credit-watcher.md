@@ -1,5 +1,8 @@
 # Milestone 2 — the AvalAI credit watcher
 
+> **Historical.** The AvalAI credit watcher was removed on 2026-11-26 at the owner's request. This
+> plan is kept as the record of how it was built; nothing in it describes the current code.
+
 **Goal:** a real alert, not a hardcoded one — the bot tells the owner when his
 AvalAI credit crosses a threshold he set, once per crossing, and never mistakes
 "I could not read it" for "it is gone".
@@ -13,7 +16,8 @@ run hourly on a timer of its own.
 `uv`, pydantic v2 + `pydantic-settings`, `requests`, pytest, type hints.
 
 **Spec:** `docs/specs/2026-10-17-bale-crier-design.md`, sections "The credit
-watcher", "Scheduling" and "Configuration".
+watcher" (removed with the feature on 2026-11-26), "Scheduling" and
+"Configuration".
 
 ## Global Constraints
 

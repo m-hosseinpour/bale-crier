@@ -1,8 +1,8 @@
 # bale-crier — the news digest (design)
 
 Settled with the owner on 2026-10-17. This is the second design document. The first,
-`2026-10-17-bale-crier-design.md`, covers the path end to end, the credit watcher and the
-owner's lists; it points here for this subsystem.
+`2026-10-17-bale-crier-design.md`, covers the path end to end, the owner's lists and
+the other watchers; it points here for this subsystem.
 
 ## What it is
 
@@ -10,7 +10,7 @@ One message per group of `CRIER_NEWS_BATCH_SIZE` stories (default five), drawn f
 query, selected and written in Persian by the LLM. The owner asked for it on 2026-10-17 — the news he
 wants is AI trends; it now runs three times a day (09:00, 15:00 and 21:00).
 
-It is a **producer**, like the credit watcher and the note producer, so the run loop, the Bale
+It is a **producer**, like the disk watcher and the note producer, so the run loop, the Bale
 sender and the history are untouched.
 
 It is **not** the news of `bale-news-digest`: that project reads Bale channels. This one reads a
@@ -206,16 +206,16 @@ that every string reaching the owner is Persian.
 | the feed was read but no story survived | nothing |
 
 A failed read is never announced as "there was no news": *"I cannot tell" stays "I cannot tell"*,
-the rule the credit watcher already follows. Because a quiet run sends nothing at all, the
+the rule the disk and changedetection watchers follow. Because a quiet run sends nothing at all, the
 failed-read bulletin says in words that it is a failed read and not a quiet day; the two states
 must never be confusable. The digest runs three times a day, so a broken feed speaks at
-most three times a day and needs no throttle of its own — the window the credit watcher has exists because
+most three times a day and needs no throttle of its own — the window the disk watcher has exists because
 that watcher runs hourly.
 
 ## The seen set
 
 The producer's own memory, in `CRIER_WATCHERS_STATE_PATH` under the name `news` — the store the
-credit watcher's latch already uses. It holds the guids of the stories the digest carried, newest
+disk watcher's latch already uses. It holds the guids of the stories the digest carried, newest
 last, capped at `SEEN_LIMIT` (500) so it cannot grow without bound.
 
 It is deliberately not the history: the history records the text the owner read, and this is
@@ -228,7 +228,7 @@ recorded, so a story can still be picked later if it becomes the day's big news.
 
 ## Scheduling
 
-Its own timer, the credit watcher's shape: `bale-crier-news.service` — a `Type=oneshot` user
+Its own timer, the disk watcher's shape: `bale-crier-news.service` — a `Type=oneshot` user
 service running `--only news` — and `bale-crier-news.timer`, three times a day (09:00, 15:00
 and 21:00, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the note run leaves it out and
 the two cannot race over one seen set.
@@ -242,8 +242,8 @@ the two cannot race over one seen set.
 | `CRIER_NEWS_BATCH_SIZE` | the most stories in one message (default 5, at least 1) |
 | `CRIER_NEWS_BLOCKLIST` | comma-separated filter words; empty means the built-in default |
 
-The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` must be set; it does not fall back to
-`CRIER_AVALAI_API_KEY`. Without a key the producer is not registered, exactly as the note producer is not,
+The digest needs the LLM, so `CRIER_OPEN_AI_API_KEY` must be set. Without a key the producer is not
+registered, exactly as the note producer is not,
 and the CLI says so in Persian. A *failing* call is the raw-headline case above; a *missing* key is
 not, so the digest does not quietly start arriving in English every day.
 

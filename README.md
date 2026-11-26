@@ -1,15 +1,15 @@
 # bale-crier
 
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
-alerts about external state (AvalAI credit running out, the disk filling up, and similar), notes
+alerts about external state (the disk filling up, a watched page changing, and similar), notes
 drawn from his own lists, expanded and varied by an LLM into a few Persian lines a few times a day,
 and an AI-news digest three times a day, picked and written in Persian.
 
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
-**Status:** milestones 1 (the path end to end), 2 (the AvalAI credit watcher), 3 (the owner's
-lists), 4 (the news digest), 5 (the disk watcher) and 6 (the changedetection watcher) are built and
-tested.
+**Status:** milestones 1 (the path end to end), 3 (the owner's lists), 4 (the news digest), 5 (the
+disk watcher) and 6 (the changedetection watcher) are built and tested. Milestone 2, the AvalAI
+credit watcher, was removed on 2026-11-26.
 
 The design and the reasons behind it are in `docs/specs/2026-10-17-bale-crier-design.md`; one plan
 per milestone lives in `docs/plans/`.
@@ -57,20 +57,18 @@ run that raises writes no line. The run log is deliberately separate from the hi
 is what the owner read, the run log is what the process did, and neither is derived from the other.
 
 ```json
-{"ts":"2026-11-10T02:05:12.123456Z","only":["credit"],"producers":["credit"],"sent":0,"failed":0,"errors":[]}
+{"ts":"2026-11-10T02:05:12.123456Z","only":["disk"],"producers":["disk"],"sent":0,"failed":0,"errors":[]}
 ```
 
 `CRIER_SMOKE=1` replaces the producers with the smoke producer, which sends one fixed test bulletin.
 It is how the path is proved after a deploy, and it is never registered by default.
 
-`--only NAME` narrows a run to one producer, and may be repeated. The credit, disk and
-changedetection watchers and the news digest each own a timer of their own, so the ordinary run
-leaves all four out; the watchers' timers run them alone with `--only credit`, `--only disk` and
-`--only changedetection`, and the news timer runs the digest alone with `--only news`. The
-credit watcher is not registered at all unless `CRIER_AVALAI_API_KEY` is set — a run under
-`--only credit` without it says so in Persian and sends nothing. The disk watcher needs no key and
-no network, so it is always registered. The changedetection watcher needs its API key, and without
-one it is not registered at all. The digest, like the note producer, needs an LLM key; without one
+`--only NAME` narrows a run to one producer, and may be repeated. The disk and changedetection
+watchers and the news digest each own a timer of their own, so the ordinary run leaves all three
+out; the watchers' timers run them alone with `--only disk` and `--only changedetection`, and the
+news timer runs the digest alone with `--only news`. The disk watcher needs no key and no network,
+so it is always registered. The changedetection watcher needs its API key, and without one it is
+not registered at all. The digest, like the note producer, needs an LLM key; without one
 `--only news` says so in Persian and sends nothing.
 
 The note producer is the note run's own work, and is registered only when an LLM key exists. With
@@ -119,44 +117,15 @@ allowance would silently turn every note and every digest into its fallback.
 
 `--only note` runs the note producer alone.
 
-## The credit watcher
-
-The watcher reads `https://api.avalai.ir/user/v1/credit` and watches whatever is paying right now:
-the active tier's spendable balance (daily first, then weekly, then unclassified), or the main
-balance when no package is live.
-
-The alert is a **threshold with a latch**, not a "reached zero" event. Below
-`CRIER_CREDIT_THRESHOLD_IRT` while the latch is armed, it sends one alert and sets the latch; at or
-above the threshold the latch re-arms. So the alert fires once per crossing, and buying a package
-that lifts the balance back over the threshold makes the next crossing speak again. The latch lives
-in `CRIER_WATCHERS_STATE_PATH` (default `data/watchers.json`) so it outlives the process.
-
-A read that fails is its own bulletin, at most once every `CRIER_CREDIT_UNKNOWN_ALERT_HOURS` hours,
-and it says the reading failed — **"I cannot tell" is never announced as "the credit is gone"**. The
-bulletin reports the numbers and nothing else: no buying advice, and no "nearly out" colour of its
-own. The threshold is the owner's, not the bot's.
-
-The same read also checks the **weekly package's clock**. A weekly package that still holds money
-and whose end date is inside `CRIER_CREDIT_EXPIRY_WARNING_HOURS` (default 24) speaks once, naming
-the package, the time left and the money left in it. It is remembered per package by name and end
-date, so the hourly check does not become an hourly message; the entry is dropped after the package
-lapses, so the next weekly package warns again. An empty package lapsing is not news, and a daily
-package is never announced — its whole life is a day, so a day's warning would be on from the
-moment it was bought. A package whose balance could not be read is still announced, with one line
-saying the amount was not read instead of a zero.
-
-The latch is the watcher's own memory, deliberately separate from the history: the history records
-what the owner read, and nothing else.
-
 ## The disk watcher
 
 The watcher reads the free space on the filesystem at `CRIER_DISK_PATH` (default `/`; the whole
 machine is one mount here) and speaks when it falls below `CRIER_DISK_THRESHOLD_GIB` (default 2 GiB
 — the setting and the bulletin use the same unit).
 
-The alert is a threshold with a latch, like the credit watcher's: below the threshold while the
-latch is armed, one alert goes and the latch is set; at or above it the latch re-arms. On top of
-that, space that stays below the threshold gets a reminder at most once every
+The alert is a threshold with a latch: below the threshold while the latch is armed, one alert
+goes and the latch is set; at or above it the latch re-arms. On top of that, space that stays below
+the threshold gets a reminder at most once every
 `CRIER_DISK_REMINDER_HOURS` hours (default 24) — a disk nobody cleans up does not fix itself, so
 one crossing alert alone would scroll away and be forgotten. The reminder says the disk is still
 low rather than pretending it just crossed.
@@ -284,20 +253,19 @@ note run leaves it out and the two cannot race over one seen set. `--only news` 
 ```
 bale_crier/
   config.py      settings from the environment, CRIER_ prefix
-  models.py      Bulletin, SendResult, RunReport, RunRecord, HistoryRecord, Package, CreditReport, Note, Story, Watch
+  models.py      Bulletin, SendResult, RunReport, RunRecord, HistoryRecord, Note, Story, Watch
   bale.py        the sender — the only place that talks to Bale, and the one that knows its Markdown
   history.py     append-only JSONL with a size cap
   runs.py        the run log: one append-only line per completed run
   jsonl.py       the crash-safe append and trim both stores share
   memory.py      a watcher's own state, across runs
-  credit.py      the AvalAI credit endpoint, parsed into numbers
   persian.py     numbers written with Persian digits, for the texts that count
   changedetection.py  the changedetection.io API: the watch list and one watch's diff
   llm.py         the AvalAI chat call, reduced to the text or a short error
   producers.py   the Producer protocol and the smoke producer
   run.py         one run: gather, send, record
   cli.py         the entry point
-  watchers/      one module per watcher: avalai_credit.py, disk.py, changedetection.py
+  watchers/      one module per watcher: disk.py, changedetection.py
   notes/         the owner's lists: reading them, choosing a note, rewording it
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/     the systemd units
@@ -309,33 +277,29 @@ tests/           pytest
 
 ## Deploy
 
-Five `Type=oneshot` user services, each with a timer of its own. Install them into the user manager:
+Four `Type=oneshot` user services, each with a timer of its own. Install them into the user manager:
 
 ```sh
 cp deploy/user/* ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
+systemctl --user enable --now bale-crier.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
 ```
 
-There are five timers. `bale-crier.timer` runs the note bulletins (everything but the credit
-watcher, the disk watcher, the changedetection watcher and the news digest); `bale-crier-credit.timer`
-runs the credit check hourly with `--only credit`, `bale-crier-disk.timer` runs the disk check hourly
+There are four timers. `bale-crier.timer` runs the note bulletins (everything but the disk watcher,
+the changedetection watcher and the news digest); `bale-crier-disk.timer` runs the disk check hourly
 with `--only disk`, `bale-crier-changedetection.timer` runs the changedetection check every three
 hours with `--only changedetection`, and `bale-crier-news.timer` runs the digest three times a day with
 `--only news`. Each owns a timer of its own so it cannot race over the note run's latch, watermarks
-or seen set. Enabling the credit watcher, the disk watcher, the changedetection watcher and the
-digest is not optional — without their timers nothing ever checks the credit, the disk or
-changedetection, and nothing sends the digest.
+or seen set. Enabling the disk watcher, the changedetection watcher and the digest is not optional —
+without their timers nothing ever checks the disk or changedetection, and nothing sends the digest.
 
 Enable the **timers**, not the services — each service is a oneshot with no `[Install]` section, so
 enabling it alone does nothing. Run `sudo loginctl enable-linger $USER` once, or the user manager
 (and the timers with it) is torn down when the last session ends.
 
-The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id,
-`CRIER_AVALAI_API_KEY` and `CRIER_OPEN_AI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`.
-The two keys are separate: the credit key is only for the credit read, and the model key is only
-for the rewording and the digest, so a missing model key leaves those two producers off even when
-the credit key is set.
+The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id and
+`CRIER_OPEN_AI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. The model key is only for
+the rewording and the digest, so a missing one leaves those two producers off.
 `WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
 `watchers_state_path` point. The two units that call the model — `bale-crier.service` and
 `bale-crier-news.service` — set `TimeoutStartSec=300`, above systemd's 90-second default, so a run
@@ -343,8 +307,8 @@ is not killed while it waits out a feed fetch, a model call and a send in turn. 
 `CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
 The times are literal `OnCalendar` lines in the unit files — 07:00 in `bale-crier.timer` (once a
-day, one note per run); `hourly` with a two-minute spread in `bale-crier-credit.timer` and in
-`bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a
+day, one note per run); `hourly` with a two-minute spread in `bale-crier-disk.timer`;
+`*-*-* 00/3:30:00` with a
 two-minute spread in `bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in
 `bale-crier-news.timer` (three times a day, 09:00, 15:00 and 21:00, also with a ten-minute
 delay).
@@ -354,9 +318,8 @@ fire. To change a time, edit the unit, copy it again and run `systemctl --user d
 Check them:
 
 ```sh
-systemctl --user list-timers bale-crier.timer bale-crier-credit.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
+systemctl --user list-timers bale-crier.timer bale-crier-disk.timer bale-crier-changedetection.timer bale-crier-news.timer
 journalctl --user -u bale-crier.service
-journalctl --user -u bale-crier-credit.service
 journalctl --user -u bale-crier-disk.service
 journalctl --user -u bale-crier-changedetection.service
 journalctl --user -u bale-crier-news.service
@@ -366,16 +329,6 @@ Before the timer is enabled, prove the path by hand with one test bulletin:
 
 ```sh
 CRIER_SMOKE=1 uv run python -m bale_crier
-```
-
-And prove the credit watcher by hand. With the balance above the threshold it sends nothing; to see
-the latch work, raise `CRIER_CREDIT_THRESHOLD_IRT` above the current balance, run once and watch one
-alert arrive, then run again and watch the latch hold. The weekly package's notice is proved the same
-way: raise `CRIER_CREDIT_EXPIRY_WARNING_HOURS` above the package's remaining lifetime, run once and
-watch one notice arrive, then run again and watch the package stay remembered.
-
-```sh
-uv run python -m bale_crier --only credit
 ```
 
 And prove the disk watcher by hand. With more than 2 GiB free it sends nothing; to see the latch

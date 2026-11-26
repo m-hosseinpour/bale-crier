@@ -59,12 +59,8 @@ class FakeResponse:
         return self._body
 
 
-def stub_credit(monkeypatch, body):
-    monkeypatch.setattr(requests, "get", lambda *a, **kw: FakeResponse(body))
-
-
 def stub_llm(monkeypatch, text="متن تازهٔ امروز"):
-    """The real client runs; only its HTTP call is faked, as `stub_credit` does."""
+    """The real client runs; only its HTTP call is faked, as the other stubs do."""
     monkeypatch.setattr(
         requests,
         "post",
@@ -111,29 +107,9 @@ def test_build_producers_has_the_smoke_producer(tmp_path):
     assert [producer.name for producer in producers] == ["smoke"]
 
 
-def test_the_credit_watcher_is_left_out_of_the_note_run(tmp_path):
-    producers = build_producers(settings(avalai_api_key="key", smoke=True), memory=memory(tmp_path))
-
-    assert [producer.name for producer in producers] == ["smoke"]
-
-
-def test_only_credit_selects_the_watcher_alone(tmp_path):
-    producers = build_producers(
-        settings(avalai_api_key="key", smoke=True), memory=memory(tmp_path), only=["credit"]
-    )
-
-    assert [producer.name for producer in producers] == ["credit"]
-
-
 def test_an_unknown_only_name_raises(tmp_path):
     with pytest.raises(ValueError):
         build_producers(settings(), memory=memory(tmp_path), only=["nope"])
-
-
-def test_no_key_means_no_credit_watcher_even_under_only(tmp_path):
-    producers = build_producers(settings(), memory=memory(tmp_path), only=["credit"])
-
-    assert producers == []
 
 
 def test_without_smoke_nothing_is_sent_and_no_history_is_written(tmp_path):
@@ -264,92 +240,6 @@ def test_a_run_that_produces_nothing_leaves_no_memory_file(tmp_path):
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
-def test_a_run_whose_watcher_sets_the_latch_leaves_it_on_disk(tmp_path, monkeypatch):
-    stub_credit(monkeypatch, {"remaining_irt": 1000, "credit_sources": {"packages": []}})
-    send, calls = stub_sender(SendResult(ok=True))
-
-    report = run_once(settings(avalai_api_key="key"), now=NOW, send=send, only=["credit"])
-
-    assert report.sent == 1
-    assert report.producers == ["credit"]
-    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
-    assert blob["credit"]["armed"] is False
-
-
-def test_a_credit_alert_is_recorded_in_the_history(tmp_path, monkeypatch):
-    """The alert is what the owner read, so it belongs in the history like any other
-    bulletin — not only in the watcher's own memory."""
-    stub_credit(monkeypatch, {"remaining_irt": 1000, "credit_sources": {"packages": []}})
-    send, _ = stub_sender(SendResult(ok=True))
-
-    run_once(settings(avalai_api_key="key"), now=NOW, send=send, only=["credit"])
-
-    records = read_all(path=tmp_path / "data" / "history.jsonl")
-    assert len(records) == 1
-    assert records[0].kind == "alert"
-    assert records[0].ok is True
-    assert records[0].note_id is None
-
-
-def test_the_credit_watcher_says_nothing_when_the_balance_is_above_the_threshold(
-    tmp_path, monkeypatch
-):
-    stub_credit(monkeypatch, {"remaining_irt": 500_000, "credit_sources": {"packages": []}})
-    send, calls = stub_sender(SendResult(ok=True))
-
-    report = run_once(settings(avalai_api_key="key"), now=NOW, send=send, only=["credit"])
-
-    assert calls == []
-    assert report.sent == 0
-    # Nothing was written, so no latch file either.
-    assert not (tmp_path / "data" / "watchers.json").exists()
-
-
-def test_a_failed_expiry_notice_repeats_next_run_instead_of_being_lost(tmp_path, monkeypatch):
-    stub_credit(
-        monkeypatch,
-        {
-            "remaining_irt": 500_000,
-            "credit_sources": {
-                "packages": [
-                    {
-                        "template_id": "w-1",
-                        "name": "وایب کُدر هفتگی پایه",
-                        "remaining_irt": "300000",
-                        "end_date": "2026-10-17T20:30:00Z",
-                    }
-                ]
-            },
-        },
-    )
-    failing, _ = stub_sender(SendResult(ok=False, error="no route"))
-
-    run_once(settings(avalai_api_key="key"), now=NOW, send=failing, only=["credit"])
-
-    # The memory is written only when every send landed, so the notice is not lost.
-    assert not (tmp_path / "data" / "watchers.json").exists()
-    assert [record.ok for record in read_all(path=tmp_path / "data" / "history.jsonl")] == [False]
-
-    send, calls = stub_sender(SendResult(ok=True))
-    run_once(settings(avalai_api_key="key"), now=NOW, send=send, only=["credit"])
-
-    assert len(calls) == 1
-    assert "منقضی" in calls[0]["text"]
-    blob = json.loads((tmp_path / "data" / "watchers.json").read_text(encoding="utf-8"))
-    assert blob["credit"]["expiry_announced"]
-
-    quiet, quiet_calls = stub_sender(SendResult(ok=True))
-    run_once(settings(avalai_api_key="key"), now=NOW, send=quiet, only=["credit"])
-
-    assert quiet_calls == []
-
-
-def test_the_disk_watcher_is_left_out_of_the_note_run(tmp_path):
-    producers = build_producers(settings(), memory=memory(tmp_path))
-
-    assert [producer.name for producer in producers] == []
-
-
 def test_only_disk_selects_the_watcher_alone(tmp_path):
     producers = build_producers(settings(), memory=memory(tmp_path), only=["disk"])
 
@@ -360,17 +250,6 @@ def test_the_note_run_leaves_the_disk_watcher_out(tmp_path):
     producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
 
     assert [producer.name for producer in producers] == ["note"]
-
-
-def test_the_credit_key_alone_builds_no_model_producers(tmp_path):
-    """The AvalAI key pays for the credit read; the model producers need their own."""
-    producers = build_producers(
-        settings(avalai_api_key="credit-key"),
-        memory=memory(tmp_path),
-        only=["note", "news"],
-    )
-
-    assert producers == []
 
 
 def test_a_disk_alert_is_recorded_in_the_history(tmp_path, monkeypatch):
@@ -401,31 +280,8 @@ def test_a_disk_check_with_space_to_spare_is_quiet(tmp_path, monkeypatch):
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
-def test_only_credit_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, capsys):
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-
-    code = main(["--only", "credit"])
-
-    captured = capsys.readouterr()
-    assert code == 0
-    assert "CRIER_AVALAI_API_KEY" in captured.err
-    assert any("\u0600" <= char <= "\u06ff" for char in captured.err)
-    # «نمی‌شود»: a half-space word written without U+200C still reads as Persian.
-    assert "\u200c" in captured.err
-
-
 def test_build_producers_includes_the_note_producer_when_a_key_is_set(tmp_path):
     producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
-
-    assert [producer.name for producer in producers] == ["note"]
-
-
-def test_the_note_run_leaves_the_credit_watcher_out_but_keeps_the_note(tmp_path):
-    producers = build_producers(
-        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
-        memory=memory(tmp_path),
-    )
 
     assert [producer.name for producer in producers] == ["note"]
 
@@ -433,7 +289,7 @@ def test_the_note_run_leaves_the_credit_watcher_out_but_keeps_the_note(tmp_path)
 def test_smoke_stays_alone_even_when_the_other_producers_could_run(tmp_path):
     """The deploy check is one fixed message; it must not spend a note as well."""
     producers = build_producers(
-        settings(smoke=True, avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        settings(smoke=True, open_ai_api_key="llm-key"),
         memory=memory(tmp_path),
     )
 
@@ -442,7 +298,7 @@ def test_smoke_stays_alone_even_when_the_other_producers_could_run(tmp_path):
 
 def test_only_note_selects_the_note_producer_alone(tmp_path):
     producers = build_producers(
-        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        settings(open_ai_api_key="llm-key"),
         memory=memory(tmp_path),
         only=["note"],
     )
@@ -466,7 +322,7 @@ def test_the_note_run_leaves_the_news_digest_out(tmp_path):
 
 def test_only_news_selects_the_digest_alone(tmp_path):
     producers = build_producers(
-        settings(avalai_api_key="credit-key", open_ai_api_key="llm-key"),
+        settings(open_ai_api_key="llm-key"),
         memory=memory(tmp_path),
         only=["news"],
     )
@@ -601,10 +457,9 @@ def test_the_missing_lists_line_is_not_printed_for_another_producer(
 ):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
-    stub_credit(monkeypatch, {"remaining_irt": 500_000, "credit_sources": {"packages": []}})
+    stub_disk(monkeypatch, 10 * GIB)
 
-    main(["--only", "credit"])
+    main(["--only", "disk"])
 
     assert "lists" not in capsys.readouterr().err
 
@@ -642,22 +497,6 @@ def test_only_news_without_a_key_reports_it_in_persian(monkeypatch, tmp_path, ca
     assert "Traceback" not in captured.err
 
 
-def test_only_news_does_not_take_the_credit_key_as_its_model_key(
-    monkeypatch, tmp_path, capsys
-):
-    """The AvalAI key pays for the credit read; it does not turn on the digest."""
-    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
-    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-    monkeypatch.setenv("CRIER_AVALAI_API_KEY", "aa-key")
-
-    code = main(["--only", "news"])
-
-    captured = capsys.readouterr()
-    assert code == 0
-    assert "CRIER_OPEN_AI_API_KEY" in captured.err
-    assert "CRIER_AVALAI_API_KEY" not in captured.err
-
-
 def test_only_news_does_not_warn_about_notes_it_never_asked_for(
     monkeypatch, tmp_path, capsys
 ):
@@ -688,7 +527,7 @@ CHANGEDETECTION_DIFF = '@added_PLACEMARKER_OPEN    "new-model"@added_PLACEMARKER
 
 
 def stub_changedetection(monkeypatch, *, last_changed: int = 100):
-    """The real client runs; only its HTTP call is faked, as `stub_credit` does."""
+    """The real client runs; only its HTTP call is faked."""
 
     class ApiResponse:
         def __init__(self, *, body=None, text="", status_code=200):

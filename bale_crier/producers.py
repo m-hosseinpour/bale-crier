@@ -1,7 +1,7 @@
 """Producers: what a run asks for bulletins right now.
 
 A producer is one kind of message. The smoke producer lives here; the ones that
-need settings or a memory to write to — the credit watcher, the note producer and
+need settings or a memory to write to — the disk watcher, the note producer and
 the news digest — are built in ``run.build_producers``.
 """
 
@@ -22,7 +22,7 @@ class Producer(Protocol):
     # Optional, and only when a producer needs it: `sent(ok, now)` is called after its
     # bulletins have gone out, so one that writes back to its source (the
     # changedetection watcher clears the unread dots) learns whether they landed. The
-    # note, news, credit and disk producers define no such method.
+    # note, news and disk producers define no such method.
 
 
 class SmokeProducer:
