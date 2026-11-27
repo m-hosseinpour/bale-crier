@@ -17,17 +17,17 @@
 ; (and this timer with it) is torn down when the last session ends.
 ;
 ; TimeoutStartSec is raised well above systemd's 90-second default: a digest can wait out a feed
-; fetch (tried twice), a model call and up to two Bale sends in turn, so the unit must allow more
-; than CRIER_OPEN_AI_TIMEOUT plus four CRIER_HTTP_TIMEOUT allowances — about 240 seconds at the
-; defaults. A run killed mid-wait would
-; send nothing and leave no history line to say why, so keep this above their sum.
+; fetch (tried twice), a model call and up to two Bale sends in turn. With the default
+; CRIER_OPEN_AI_TIMEOUT of 600 seconds and four 30-second HTTP allowances that sum is about
+; 720 seconds, so 900 leaves room for process start-up. A run killed mid-wait would send nothing
+; and leave no history line to say why, so keep this above their sum.
 
 [Unit]
 Description=send the AI-news digest once
 
 [Service]
 Type=oneshot
-TimeoutStartSec=300
+TimeoutStartSec=900
 WorkingDirectory=/home/mahdi/workspace/bale-crier/
 ExecStart=/home/mahdi/workspace/bale-crier/.venv/bin/python -m bale_crier --only news
 Environment=PYTHONUNBUFFERED=1

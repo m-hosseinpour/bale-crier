@@ -3,7 +3,7 @@
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
 alerts about external state (free disk space below a threshold, a watched page changing, and
 similar), notes drawn from his own lists, expanded by an LLM into a couple of Persian sentences
-(not one) without practical tips and sent once a day at 07:00, and a digest of AI news three times
+(not one) without practical tips and sent once a day at 07:07, and a digest of AI news three times
 a day, picked and written in Persian. Lessons come later.
 
 Bale is the only channel, and the alerts are Bale messages too. Nothing here is channel-agnostic,
@@ -15,7 +15,7 @@ set, the model's selection), the disk watcher (free space below a threshold, hou
 and a daily reminder), and the changedetection watcher (the pages changedetection.io watches, every
 three hours, one message naming what changed). Milestone 2, the AvalAI credit watcher, was built
 and then removed on 2026-11-26. All four remaining timers are enabled and scheduled. The note timer
-runs once a day at 07:00 and sends one note per run from `lists/`.
+runs once a day at 07:07 and sends one note per run from `lists/`.
 
 **Where the reasoning lives:** `docs/specs/2026-10-17-bale-crier-design.md` holds the design and why
 it is that way; `docs/plans/` holds one plan per milestone. This file holds only what a session must

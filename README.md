@@ -111,9 +111,10 @@ the expanded text, because that is what the owner actually read. A failed call d
 the bulletin then carries the note's own
 text followed by one line saying the expansion did not happen, and the history records that.
 
-A model call gets `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds), not the 30-second
-`CRIER_HTTP_TIMEOUT`: it is a reasoning model and takes tens of seconds to answer, so a shorter
-allowance would silently turn every note and every digest into its fallback.
+A model call gets `CRIER_OPEN_AI_TIMEOUT` (default 600 seconds, ten minutes), not the 30-second
+`CRIER_HTTP_TIMEOUT`: it is a reasoning model reached through a router, and a slow route can take
+minutes to answer, so a shorter allowance would silently turn every note and every digest into its
+fallback.
 
 `--only note` runs the note producer alone.
 
@@ -245,8 +246,10 @@ survivors with their sources and links, in the same groups, each message carryin
 that names the failure and the call's code. A feed
 that was read with nothing left sends nothing: a day without news is not a failure.
 
-The digest owns a timer of its own, `bale-crier-news.timer`, three times a day at 09:00, 15:00 and 21:00, so the
-note run leaves it out and the two cannot race over one seen set. `--only news` runs it alone.
+The digest owns a timer of its own, `bale-crier-news.timer`, three times a day at 09:07, 15:07 and
+21:07, so the note run leaves it out and the two cannot race over one seen set. `--only news` runs
+it alone. The seven-minute offset keeps its model call from landing with the other project's :00
+news run.
 
 ## Structure
 
@@ -302,16 +305,16 @@ The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat 
 the rewording and the digest, so a missing one leaves those two producers off.
 `WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
 `watchers_state_path` point. The two units that call the model — `bale-crier.service` and
-`bale-crier-news.service` — set `TimeoutStartSec=300`, above systemd's 90-second default, so a run
+`bale-crier-news.service` — set `TimeoutStartSec=900`, above systemd's 90-second default, so a run
 is not killed while it waits out a feed fetch, a model call and a send in turn. Keep it above
 `CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
-The times are literal `OnCalendar` lines in the unit files — 07:00 in `bale-crier.timer` (once a
-day, one note per run); `hourly` with a two-minute spread in `bale-crier-disk.timer`;
-`*-*-* 00/3:30:00` with a
-two-minute spread in `bale-crier-changedetection.timer`; and 09:00 with a ten-minute delay in
-`bale-crier-news.timer` (three times a day, 09:00, 15:00 and 21:00, also with a ten-minute
-delay).
+The times are literal `OnCalendar` lines in the unit files — 07:07 in `bale-crier.timer` (once a
+day, one note per run, seven minutes after the other project's 07:00 news run); `hourly` with a
+two-minute spread in `bale-crier-disk.timer`; `*-*-* 00/3:30:00` with a two-minute spread in
+`bale-crier-changedetection.timer`; and 09:07, 15:07 and 21:07 with a two-minute spread in
+`bale-crier-news.timer` (three times a day, each about seven minutes after the other project's
+:00 run).
 systemd expands no environment variable in a unit file, so a schedule setting would silently never
 fire. To change a time, edit the unit, copy it again and run `systemctl --user daemon-reload`.
 

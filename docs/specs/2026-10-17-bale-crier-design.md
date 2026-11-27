@@ -254,16 +254,19 @@ calendar spec. Changing the times means editing the unit and running
 `systemctl --user daemon-reload`; the unit's own comments say so.
 
 Each run of `bale-crier.timer` sends **one** note bulletin, plus any alert whose
-producer has no timer of its own — with one run a day at 07:00 (the owner's choice
-on 2026-11-05, down from three, then two) that is "once a day". The disk watcher,
-the changedetection watcher and the news digest each have a timer of their own, so
+producer has no timer of its own — with one run a day at 07:07 (the owner's choice
+on 2026-11-05, down from three, then two) that is "once a day". The hour moved from
+07:00 to 07:07 on 2026-11-27, seven minutes after the other project's 07:00 news
+run, so the two model calls do not land together. The disk watcher, the
+changedetection watcher and the news digest each have a timer of their own, so
 they are not part of those runs.
 
 There are therefore four timers: `bale-crier.timer` for the note bulletins,
 `bale-crier-disk.timer`, hourly, which runs the same program narrowed with
 `--only disk`, `bale-crier-changedetection.timer`, every three hours, which runs it
 with `--only changedetection`, and `bale-crier-news.timer`, three times a day at
-09:00, 15:00 and 21:00, which runs it with `--only news` for the AI-news digest.
+09:07, 15:07 and 21:07, which runs it with `--only news` for the AI-news digest
+(also moved seven minutes past the hour on 2026-11-27).
 
 ## Configuration
 
@@ -277,7 +280,7 @@ with `--only changedetection`, and `bale-crier-news.timer`, three times a day at
 | `CRIER_RUNS_PATH` | the run log (default `data/runs.jsonl`) |
 | `CRIER_RUNS_MAX_LINES` | the run-log cap (default 1000) |
 | `CRIER_OPEN_AI_BASE_URL`, `CRIER_OPEN_AI_MODEL`, `CRIER_OPEN_AI_API_KEY` | the LLM (its own key) |
-| `CRIER_OPEN_AI_TIMEOUT` | how long a model call may take (default 120; the model is a reasoning model and needs tens of seconds, where `CRIER_HTTP_TIMEOUT` is a Bale-sized allowance) |
+| `CRIER_OPEN_AI_TIMEOUT` | how long a model call may take (default 600, ten minutes; the model is a reasoning model reached through a router and a slow route can take minutes, where `CRIER_HTTP_TIMEOUT` is a Bale-sized allowance) |
 | `CRIER_WATCHERS_STATE_PATH` | where a watcher keeps its own memory (default `data/watchers.json`) |
 | `CRIER_DISK_PATH` | the filesystem the disk watcher reads (default `/`) |
 | `CRIER_DISK_THRESHOLD_GIB` | the free-space threshold in GiB (default 2) |
@@ -452,9 +455,10 @@ send is verified by hand, once per milestone.
 
 - Which other watchers the owner wants, beyond free disk space and the pages
   changedetection.io watches.
-- The note time is 07:00 — once a day, as the owner chose on 2026-11-05, down from
-  08:00 and 20:00 (and the three-times default before that); the hourly disk check
-  needs no confirmation.
+- The note time is 07:07 — once a day, as the owner chose on 2026-11-05, down from
+  08:00 and 20:00 (and the three-times default before that); the slot moved from
+  07:00 on 2026-11-27 to sit seven minutes after the other project's news run. The
+  hourly disk check needs no confirmation.
 - **Settled 2026-10-17:** news summaries do not move here from `bale-news-digest`. That project
   keeps its own news; the news digest is a new, different thing — the day's AI trends from a web
   feed — and has its own design (`2026-10-17-news-digest-design.md`).

@@ -8,7 +8,7 @@ the other watchers; it points here for this subsystem.
 
 One message per group of `CRIER_NEWS_BATCH_SIZE` stories (default five), drawn from a Google News
 query, selected and written in Persian by the LLM. The owner asked for it on 2026-10-17 — the news he
-wants is AI trends; it now runs three times a day (09:00, 15:00 and 21:00).
+wants is AI trends; it now runs three times a day (09:07, 15:07 and 21:07).
 
 It is a **producer**, like the disk watcher and the note producer, so the run loop, the Bale
 sender and the history are untouched.
@@ -229,9 +229,12 @@ recorded, so a story can still be picked later if it becomes the day's big news.
 ## Scheduling
 
 Its own timer, the disk watcher's shape: `bale-crier-news.service` — a `Type=oneshot` user
-service running `--only news` — and `bale-crier-news.timer`, three times a day (09:00, 15:00
-and 21:00, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The producer sets `own_timer = True`, so the note run leaves it out and
-the two cannot race over one seen set.
+service running `--only news` — and `bale-crier-news.timer`, three times a day (09:07, 15:07
+and 21:07, the owner's choice on 2026-10-29) at fixed times with a small `RandomizedDelaySec`. The
+times moved seven minutes past the hour on 2026-11-27 so each model call starts after the other
+project's :00 news run instead of landing with it; the two-minute spread matches that project's
+jitter. The producer sets `own_timer = True`, so the note run leaves it out and the two cannot
+race over one seen set.
 
 ## Configuration
 
@@ -247,11 +250,13 @@ registered, exactly as the note producer is not,
 and the CLI says so in Persian. A *failing* call is the raw-headline case above; a *missing* key is
 not, so the digest does not quietly start arriving in English every day.
 
-A model call is allowed `CRIER_OPEN_AI_TIMEOUT` (default 120 seconds) rather than the project's
-30-second `http_timeout`. Measured on 2026-10-17, this model takes **30 to 50 seconds** to answer
-the digest prompt — with five candidates as well as with fifty-four, so the latency is the model's
-own, not the prompt's size. At the HTTP timeout every call would be cut off and the digest would
-arrive in English every day, which is the one outcome the failure rules exist to avoid.
+A model call is allowed `CRIER_OPEN_AI_TIMEOUT` (default 600 seconds, ten minutes, raised from 120
+on 2026-11-27) rather than the project's 30-second `http_timeout`. Measured on 2026-10-17, this
+model took **30 to 50 seconds** to answer the digest prompt — with five candidates as well as with
+fifty-four, so the latency was the model's own, not the prompt's size. A slow router route can now
+take minutes, so the allowance is ten minutes; at the HTTP timeout every call would be cut off and
+the digest would arrive in English every day, which is the one outcome the failure rules exist to
+avoid.
 
 ## Where it sits in the code
 
@@ -283,7 +288,8 @@ verified by hand once, like every milestone.
 ## Still open
 
 - The digest shipped once a day at 09:00; on 2026-10-29 the owner made it three times a day, at
-  09:00, 15:00 and 21:00.
+  09:00, 15:00 and 21:00. On 2026-11-27 all three moved seven minutes later (09:07, 15:07 and
+  21:07) so the AI call starts after the other project's 15-minute news run.
 - The query is the owner's to tighten. The default was rewritten on 2026-11-05 for the stricter bar;
   the digests that follow will show whether its words need adding or dropping.
 - How strict is strict enough is the owner's call, and only his reading of the digests answers it.

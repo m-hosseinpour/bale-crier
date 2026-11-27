@@ -39,11 +39,12 @@ class Settings(BaseSettings):
     open_ai_base_url: str = "https://api.avalai.ir/v1"
     open_ai_model: str = "deepseek-v4-flash"
     open_ai_api_key: str | None = None
-    # The model is a reasoning model and takes tens of seconds to answer where a
-    # Bale or feed call takes milliseconds, so it gets its own allowance: at the
-    # project's HTTP timeout every model call would be cut off and degrade to the
-    # fallback text without a word about why.
-    open_ai_timeout: int = Field(default=120, ge=1)
+    # The model is a reasoning model reached through a router, and a slow route can
+    # take minutes to answer where a Bale or feed call takes milliseconds. Ten
+    # minutes keeps a slow-but-working call from degrading to the fallback text;
+    # the service units' TimeoutStartSec must stay above this plus their HTTP
+    # allowances.
+    open_ai_timeout: int = Field(default=600, ge=1)
     # The whole machine is one filesystem here (`/`), so that is what the disk
     # watcher reads unless the owner points it somewhere else.
     disk_path: Path = Path("/")

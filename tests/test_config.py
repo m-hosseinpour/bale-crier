@@ -62,9 +62,9 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     assert settings.open_ai_base_url == "https://api.avalai.ir/v1"
     assert settings.open_ai_model == "deepseek-v4-flash"
     assert settings.open_ai_api_key is None
-    # The model's own allowance, well above the HTTP timeout: it is a reasoning
-    # model, and at 30s every call would be cut off and degrade to the fallback.
-    assert settings.open_ai_timeout == 120
+    # The model's own allowance, ten minutes: a slow route can take minutes, and at
+    # the HTTP timeout every call would be cut off and degrade to the fallback.
+    assert settings.open_ai_timeout == 600
     assert settings.disk_path == Path("/")
     assert settings.disk_threshold_gib == 2
     assert settings.disk_reminder_hours == 24

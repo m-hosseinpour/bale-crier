@@ -7,18 +7,22 @@
 ; a schedule setting would silently never fire. To change a time, edit the OnCalendar lines below
 ; and run `systemctl --user daemon-reload`.
 ;
+; Seven minutes past the hour, not on it: the other project polls its news channel on the hour
+; and every quarter, and this starts the digest after the :00 run instead of landing with it.
+; The two-minute spread matches that project's own jitter, so the gap stays about seven minutes.
+;
 ; The bale-crier.timer does not run the digest — it owns this timer — so the two timers cannot race
 ; over one seen set.
 
 [Unit]
-Description=Send the AI-news digest three times a day
+Description=Send the AI-news digest three times a day at 09:07, 15:07 and 21:07
 
 [Timer]
-OnCalendar=09:00
-OnCalendar=15:00
-OnCalendar=21:00
+OnCalendar=09:07
+OnCalendar=15:07
+OnCalendar=21:07
 Persistent=true
-RandomizedDelaySec=10m
+RandomizedDelaySec=2m
 
 [Install]
 WantedBy=timers.target
