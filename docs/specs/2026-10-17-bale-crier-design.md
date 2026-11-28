@@ -10,11 +10,12 @@ needs told. Three families of message, one channel:
 
 - **alerts** about external state — free disk space falling below a threshold, and
   the pages changedetection.io watches changing;
-- **notes** drawn from the owner's own lists, expanded by an LLM into a few lines
-  of Persian so the same item does not arrive in the same words twice and does
-  not arrive as a one-line bullet. The expansion explains the note plainly and
-  clearly; its tone may be warm, and nothing is appended to it (settled
-  2026-10-17, expanded 2026-10-21, made plain 2026-11-12);
+- **notes** drawn from the owner's own lists and sent as they are written. An LLM
+  can expand a note into a few lines of Persian — so it does not arrive in the
+  same words twice and not as a one-line bullet — but that is off by default
+  (`CRIER_NOTE_REWORD`, settled 2026-11-28). When on, the expansion explains the
+  note plainly and clearly; its tone may be warm, and nothing is appended to it
+  (settled 2026-10-17, expanded 2026-10-21, made plain 2026-11-12);
 - **news** — the day's AI trends, drawn from a web feed and written in Persian.
   It is a subsystem of its own, designed in
   `2026-10-17-news-digest-design.md` (settled 2026-10-17).
@@ -40,9 +41,10 @@ table, one line each.
 | `story` | one entry in the news feed: a headline, its source and its link | the feed, read by the app |
 | `schedule` | when a run happens | the OS timer |
 
-`note` and `bulletin` are two layers, not two names for one thing. The LLM takes
-a `note` and produces the text of a `bulletin`. That is why the history records
-two different facts: which note went, and what text was sent.
+`note` and `bulletin` are two layers, not two names for one thing. The bulletin
+carries the note's own text, or the LLM's expansion of it when rewording is on.
+That is why the history records two different facts: which note went, and what
+text was sent.
 
 Alternatives weighed and dropped: naming the note and the bulletin the same word
 (would hide the reword step), and dropping `list` as "just a directory" (the
@@ -108,7 +110,7 @@ bale_crier/
   cli.py         the entry point
   changedetection.py  the changedetection.io API: the watch list, one watch's diff, the viewed mark
   watchers/      one module per watcher: disk.py, changedetection.py
-  notes/         reading the lists, choosing a note, rewording it
+  notes/         reading the lists, choosing a note, the opt-in rewording
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/bale-crier.service + .timer          the note bulletins
 deploy/user/bale-crier-disk.service + .timer     the hourly disk check
@@ -164,12 +166,18 @@ is inside the floor the fallback hands back that same note. A version with the
 filter deleted passes the same tests, which is what a rule that changes no answer
 looks like. `CRIER_NOTE_FLOOR_DAYS` went with it.
 
-## Rewording (the LLM)
+## Rewording (the LLM, off by default)
 
-One call per bulletin — a failure costs one bulletin, and retrying it costs one
-call. The model is configurable (`CRIER_OPEN_AI_MODEL`); the default is a cheap
-one, reached through AvalAI's OpenAI-compatible endpoint at
-`https://api.avalai.ir/v1`.
+**Off by default** (owner's ruling, 2026-11-28). The note is the message: a run
+sends the chosen note's body as written, with no model call, and the history
+records that text. The expansion below stays in the code and is reached by
+setting `CRIER_NOTE_REWORD`; it needs `CRIER_OPEN_AI_API_KEY`, and with the switch
+on and no key the CLI says so and the note still goes out as written.
+
+With the switch on, one call per bulletin — a failure costs one bulletin, and
+retrying it costs one call. The model is configurable (`CRIER_OPEN_AI_MODEL`);
+the default is a cheap one, reached through AvalAI's OpenAI-compatible endpoint
+at `https://api.avalai.ir/v1`.
 
 The prompt asks for: the note's meaning kept, then **expanded** into two short
 Persian sentences, under 200 characters — the note's point explained plainly,
@@ -213,8 +221,9 @@ only packed the same length into fewer periods — so the instruction now also c
 the whole text at 200 characters. Two more live calls through the same model
 answered at 174 and 180 characters, two sentences each.
 
-The reworded text, not the note's own text, is what the history stores: that is
-the record of what the owner actually read.
+The text actually sent is what the history stores — the note's own text by
+default, the reworded text with the switch on: that is the record of what the
+owner actually read.
 
 **Two rulings from the owner (2026-10-17).** There is **no separate motivational
 sentence**: the warm tone lives inside the rewording, so nothing is appended to it

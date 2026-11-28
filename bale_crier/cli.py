@@ -37,12 +37,14 @@ def main(argv: list[str] | None = None) -> int:
     # A producer that cannot be built must not be a silent gap: without a word, a
     # missing key or a missing directory looks exactly like a quiet day. A smoke run
     # is the exception — it asks no producer for notes, so warning about them there
-    # would be a false alarm on the very deploy check the warning is for.
+    # would be a false alarm on the very deploy check the warning is for. A note
+    # needs no key unless the owner asked the model to reword it; then the note
+    # still goes out as it is, and this line explains why it was not reworded.
     notes_wanted = (NOTE in args.only) if args.only else not settings.smoke
-    if notes_wanted and not settings.open_ai_api_key:
+    if notes_wanted and settings.note_reword and not settings.open_ai_api_key:
         print(
-            "بازنویسی یادداشت‌ها بدون کلید مدل ممکن نیست: "
-            "CRIER_OPEN_AI_API_KEY تنظیم نشده است.",
+            "بازنویسی یادداشت‌ها درخواست شده اما بدون کلید مدل ممکن نیست؛ "
+            "متن خود یادداشت فرستاده می\u200cشود: CRIER_OPEN_AI_API_KEY تنظیم نشده است.",
             file=sys.stderr,
         )
     if notes_wanted and not settings.lists_dir.is_dir():

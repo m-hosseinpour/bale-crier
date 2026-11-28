@@ -2,14 +2,16 @@
 
 One server-side bot that pushes into a single Bale chat everything the owner needs told: hard
 alerts about external state (the disk filling up, a watched page changing, and similar), notes
-drawn from his own lists, expanded and varied by an LLM into a few Persian lines a few times a day,
-and an AI-news digest three times a day, picked and written in Persian.
+drawn from his own lists and sent as they are once a day at 07:07 (an LLM expansion is available
+behind an off-by-default switch), and an AI-news digest three times a day, picked and written in
+Persian.
 
 Bale is the only channel. The bot sends and never receives — no webhook, no long polling.
 
 **Status:** milestones 1 (the path end to end), 3 (the owner's lists), 4 (the news digest), 5 (the
 disk watcher) and 6 (the changedetection watcher) are built and tested. Milestone 2, the AvalAI
-credit watcher, was removed on 2026-11-26.
+credit watcher, was removed on 2026-11-26. Since 2026-11-28 the note run sends each note as written;
+the model rewording is opt-in behind `CRIER_NOTE_REWORD`.
 
 The design and the reasons behind it are in `docs/specs/2026-10-17-bale-crier-design.md`; one plan
 per milestone lives in `docs/plans/`.
@@ -68,12 +70,14 @@ watchers and the news digest each own a timer of their own, so the ordinary run 
 out; the watchers' timers run them alone with `--only disk` and `--only changedetection`, and the
 news timer runs the digest alone with `--only news`. The disk watcher needs no key and no network,
 so it is always registered. The changedetection watcher needs its API key, and without one it is
-not registered at all. The digest, like the note producer, needs an LLM key; without one
-`--only news` says so in Persian and sends nothing.
+not registered at all. The digest needs an LLM key; without one `--only news` says so in Persian and
+sends nothing.
 
-The note producer is the note run's own work, and is registered only when an LLM key exists. With
-no key, or with no `lists/` directory, the run says so in Persian on stderr rather than passing the
-gap off as a quiet day.
+The note producer is the note run's own work and is always registered: by default it sends the
+note's own text, so it needs no model key. A model key is needed by the digest, and by the note
+run only when `CRIER_NOTE_REWORD` is on; with the switch on and no key, the run says so in Persian
+on stderr and sends the note as it is. With no `lists/` directory the run says so on stderr rather
+than passing the gap off as a quiet day.
 
 Tests:
 
@@ -101,20 +105,22 @@ note gets follows from the size of its list. There is deliberately no separate "
 N days" floor: with the notes ordered by last send, such a floor can only ever return the note the
 cycle had already picked.
 
-The note is expanded before it is sent — fresh Persian through `CRIER_OPEN_AI_MODEL`, as two short
-sentences under 200 characters explaining the note's point and why it matters, with the wordings it
-already arrived in supplied so the model can avoid them. The explanation is plain and clear: no
-simile, metaphor or poetic phrasing, and it says the point rather than reporting what "the note says"
-(2026-11-12). The model may not invent a number, statistic, quote or event, and it gives no practical
-tip about how to apply the note — the owner found those tips useless (2026-11-05). The history stores
-the expanded text, because that is what the owner actually read. A failed call does not cost the note:
-the bulletin then carries the note's own
-text followed by one line saying the expansion did not happen, and the history records that.
+The note goes out as it is written: the body under the heading is the message. **The LLM expansion
+is off by default** (owner's ruling, 2026-11-28); set `CRIER_NOTE_REWORD=1` to have the model reword
+the note into fresh Persian through `CRIER_OPEN_AI_MODEL`, as two short sentences under 200
+characters explaining the note's point and why it matters, with the wordings it already arrived in
+supplied so the model can avoid them. The explanation is plain and clear: no simile, metaphor or
+poetic phrasing, and it says the point rather than reporting what "the note says" (2026-11-12). The
+model may not invent a number, statistic, quote or event, and it gives no practical tip about how to
+apply the note — the owner found those tips useless (2026-11-05). The history stores what was
+actually sent: the note's text, or the expansion when it ran. With the switch on, a failed call does
+not cost the note: the bulletin then carries the note's own text followed by one line saying the
+expansion did not happen, and the history records that.
 
 A model call gets `CRIER_OPEN_AI_TIMEOUT` (default 600 seconds, ten minutes), not the 30-second
 `CRIER_HTTP_TIMEOUT`: it is a reasoning model reached through a router, and a slow route can take
-minutes to answer, so a shorter allowance would silently turn every note and every digest into its
-fallback.
+minutes to answer, so a shorter allowance would silently turn every reworded note and every digest
+into its fallback.
 
 `--only note` runs the note producer alone.
 
@@ -269,7 +275,7 @@ bale_crier/
   run.py         one run: gather, send, record
   cli.py         the entry point
   watchers/      one module per watcher: disk.py, changedetection.py
-  notes/         the owner's lists: reading them, choosing a note, rewording it
+  notes/         the owner's lists: reading them, choosing a note, the opt-in rewording
   news/          the AI-news digest: the feed, the selection, the producer
 deploy/user/     the systemd units
 lists/           the owner's content (gitignored)
@@ -302,12 +308,13 @@ enabling it alone does nothing. Run `sudo loginctl enable-linger $USER` once, or
 
 The run reads `.env` from the unit's `WorkingDirectory`, so the token, the chat id and
 `CRIER_OPEN_AI_API_KEY` live in `/home/mahdi/workspace/bale-crier/.env`. The model key is only for
-the rewording and the digest, so a missing one leaves those two producers off.
-`WorkingDirectory` also fixes where the relative `lists_dir`, `history_path` and
-`watchers_state_path` point. The two units that call the model — `bale-crier.service` and
-`bale-crier-news.service` — set `TimeoutStartSec=900`, above systemd's 90-second default, so a run
-is not killed while it waits out a feed fetch, a model call and a send in turn. Keep it above
-`CRIER_OPEN_AI_TIMEOUT` plus the `CRIER_HTTP_TIMEOUT` allowances if you raise them.
+the digest and, when `CRIER_NOTE_REWORD` is on, the note rewording; a missing one leaves the digest
+off and only costs the note its rewording. `WorkingDirectory` also fixes where the relative
+`lists_dir`, `history_path` and `watchers_state_path` point. The two units that can call the
+model — `bale-crier.service` (only with `CRIER_NOTE_REWORD`) and `bale-crier-news.service` — set
+`TimeoutStartSec=900`, above systemd's 90-second default, so a run is not killed while it waits out
+a feed fetch, a model call and a send in turn. Keep it above `CRIER_OPEN_AI_TIMEOUT` plus the
+`CRIER_HTTP_TIMEOUT` allowances if you raise them.
 
 The times are literal `OnCalendar` lines in the unit files — 07:07 in `bale-crier.timer` (once a
 day, one note per run, seven minutes after the other project's 07:00 news run); `hourly` with a

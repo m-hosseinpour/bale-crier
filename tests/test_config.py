@@ -53,6 +53,8 @@ def test_the_defaults_are_the_ones_the_spec_settles(monkeypatch):
     settings = load_settings()
 
     assert settings.lists_dir == Path("lists")
+    # The note goes out as it is unless the owner asks for the model's rewording.
+    assert settings.note_reword is False
     assert settings.history_path == Path("data/history.jsonl")
     assert settings.history_max_lines == 5000
     assert settings.runs_path == Path("data/runs.jsonl")
@@ -165,6 +167,14 @@ def test_a_zero_disk_reminder_window_is_refused(monkeypatch):
         load_settings()
 
     assert "CRIER_DISK_REMINDER_HOURS" in str(caught.value)
+
+
+def test_the_note_reword_switch_takes_its_value_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "123")
+    monkeypatch.setenv("CRIER_NOTE_REWORD", "1")
+
+    assert load_settings().note_reword is True
 
 
 def test_the_llm_key_is_read_on_its_own(monkeypatch):

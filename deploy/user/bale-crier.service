@@ -13,10 +13,11 @@
 ; Linger must be on — `sudo loginctl enable-linger $USER` — otherwise the user manager
 ; (and this timer with it) is torn down when the last session ends.
 ;
-; TimeoutStartSec is raised well above systemd's 90-second default: a run waits out a model call
-; and a Bale send in turn. With the default CRIER_OPEN_AI_TIMEOUT of 600 seconds that sum is
-; about 630 seconds, so 900 leaves room for process start-up and a slow send. A run killed
-; mid-wait would send nothing and leave no history line to say why, so keep this above the sum.
+; TimeoutStartSec is raised well above systemd's 90-second default: with CRIER_NOTE_REWORD a run
+; waits out a model call and a Bale send in turn. With the default CRIER_OPEN_AI_TIMEOUT of 600
+; seconds that sum is about 630 seconds, so 900 leaves room for process start-up and a slow send.
+; A run killed mid-wait would send nothing and leave no history line to say why, so keep this
+; above the sum.
 
 [Unit]
 Description=run bale-crier once

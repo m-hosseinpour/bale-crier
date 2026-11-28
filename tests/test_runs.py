@@ -125,8 +125,8 @@ def test_a_cap_below_one_is_refused_before_anything_is_written(tmp_path):
 
 
 def test_a_quiet_run_still_records_a_line(tmp_path):
-    """No producer is built, so nothing could be sent — and the log must say the run
-    happened anyway."""
+    """The note producer has no notes to send, so nothing goes — and the log must say
+    the run happened anyway."""
     send, calls = stub_sender(SendResult(ok=True))
 
     run_once(settings(), now=NOW, send=send)
@@ -136,7 +136,7 @@ def test_a_quiet_run_still_records_a_line(tmp_path):
     assert len(records) == 1
     assert records[0].ts == NOW
     assert records[0].only is None
-    assert records[0].producers == []
+    assert records[0].producers == ["note"]
     assert records[0].sent == 0
     assert records[0].failed == 0
     assert records[0].errors == []

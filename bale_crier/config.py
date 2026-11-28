@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     bale_bot_token: str
     bale_chat_id: int
     lists_dir: Path = Path("lists")
+    # A note goes out as it is written. With this on, the model expands the chosen
+    # note into fresh Persian first — the older behavior — and that needs the key.
+    note_reword: bool = False
     history_path: Path = Path("data/history.jsonl")
     # Bounded below because each of these silently does damage at zero: a cap of
     # zero empties the history, and a zero timeout fails every call.

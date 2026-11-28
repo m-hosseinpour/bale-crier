@@ -97,8 +97,11 @@ def stub_feed(monkeypatch, body: bytes = FEED_XML):
     monkeypatch.setattr(requests, "get", lambda *a, **kw: FeedResponse())
 
 
-def test_build_producers_is_empty_without_smoke(tmp_path):
-    assert build_producers(settings(), memory=memory(tmp_path)) == []
+def test_build_producers_includes_the_note_producer_without_a_key(tmp_path):
+    """The note's own text needs no model, so the note run works with no key."""
+    producers = build_producers(settings(), memory=memory(tmp_path))
+
+    assert [producer.name for producer in producers] == ["note"]
 
 
 def test_build_producers_has_the_smoke_producer(tmp_path):
@@ -121,7 +124,7 @@ def test_without_smoke_nothing_is_sent_and_no_history_is_written(tmp_path):
     assert not (tmp_path / "data" / "history.jsonl").exists()
     assert report.sent == 0
     assert report.failed == 0
-    assert report.producers == []
+    assert report.producers == ["note"]
 
 
 def test_a_successful_smoke_run_sends_once_and_records_it(tmp_path):
@@ -280,12 +283,6 @@ def test_a_disk_check_with_space_to_spare_is_quiet(tmp_path, monkeypatch):
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
-def test_build_producers_includes_the_note_producer_when_a_key_is_set(tmp_path):
-    producers = build_producers(settings(open_ai_api_key="key"), memory=memory(tmp_path))
-
-    assert [producer.name for producer in producers] == ["note"]
-
-
 def test_smoke_stays_alone_even_when_the_other_producers_could_run(tmp_path):
     """The deploy check is one fixed message; it must not spend a note as well."""
     producers = build_producers(
@@ -306,10 +303,10 @@ def test_only_note_selects_the_note_producer_alone(tmp_path):
     assert [producer.name for producer in producers] == ["note"]
 
 
-def test_no_llm_key_means_no_note_producer_even_under_only(tmp_path):
+def test_only_note_needs_no_llm_key(tmp_path):
     producers = build_producers(settings(), memory=memory(tmp_path), only=["note"])
 
-    assert producers == []
+    assert [producer.name for producer in producers] == ["note"]
 
 
 def test_the_note_run_leaves_the_news_digest_out(tmp_path):
@@ -399,20 +396,19 @@ def test_a_digest_goes_out_in_groups_and_each_message_gets_its_own_record(tmp_pa
     assert not (tmp_path / "data" / "watchers.json").exists()
 
 
-def test_a_note_run_sends_one_note_and_records_what_went(tmp_path, monkeypatch):
+def test_a_note_run_sends_the_note_itself_without_a_key(tmp_path):
     lists = tmp_path / "lists"
     lists.mkdir()
     (lists / "reading.md").write_text(
         "## reading-1\nهر روز یک صفحه کتاب بخوان\n", encoding="utf-8"
     )
-    stub_llm(monkeypatch, text="هر روز، یک صفحه بخوان")
     send, calls = stub_sender(SendResult(ok=True))
 
-    report = run_once(settings(open_ai_api_key="key", lists_dir=lists), now=NOW, send=send)
+    report = run_once(settings(lists_dir=lists), now=NOW, send=send)
 
     assert report.sent == 1
     assert report.producers == ["note"]
-    assert calls[0]["text"] == "هر روز، یک صفحه بخوان"
+    assert calls[0]["text"] == "هر روز یک صفحه کتاب بخوان"
     records = read_all(path=tmp_path / "data" / "history.jsonl")
     assert len(records) == 1
     assert records[0].kind == "note"
@@ -422,9 +418,31 @@ def test_a_note_run_sends_one_note_and_records_what_went(tmp_path, monkeypatch):
     assert records[0].text == calls[0]["text"]
 
 
-def test_main_says_in_persian_when_the_llm_key_is_missing(monkeypatch, tmp_path, capsys):
+def test_a_note_run_with_the_switch_on_sends_the_models_text(tmp_path, monkeypatch):
+    lists = tmp_path / "lists"
+    lists.mkdir()
+    (lists / "reading.md").write_text(
+        "## reading-1\nهر روز یک صفحه کتاب بخوان\n", encoding="utf-8"
+    )
+    stub_llm(monkeypatch, text="هر روز، یک صفحه بخوان")
+    send, calls = stub_sender(SendResult(ok=True))
+
+    report = run_once(
+        settings(open_ai_api_key="key", note_reword=True, lists_dir=lists),
+        now=NOW,
+        send=send,
+    )
+
+    assert report.sent == 1
+    assert calls[0]["text"] == "هر روز، یک صفحه بخوان"
+
+
+def test_main_says_in_persian_when_rewording_is_on_but_the_key_is_missing(
+    monkeypatch, tmp_path, capsys
+):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    monkeypatch.setenv("CRIER_NOTE_REWORD", "1")
 
     code = main([])
 
@@ -436,13 +454,38 @@ def test_main_says_in_persian_when_the_llm_key_is_missing(monkeypatch, tmp_path,
     assert "Traceback" not in captured.err
 
 
+def test_main_sends_a_note_without_asking_for_a_key(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
+    monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
+    lists = tmp_path / "lists"
+    lists.mkdir()
+    (lists / "reading.md").write_text(
+        "## reading-1\nهر روز یک صفحه کتاب بخوان\n", encoding="utf-8"
+    )
+    sent = []
+
+    def post(url, **kwargs):
+        sent.append(kwargs["json"])
+        return FakeResponse({"ok": True})
+
+    monkeypatch.setattr(requests, "post", post)
+
+    code = main([])
+
+    assert code == 0
+    assert "CRIER_OPEN_AI_API_KEY" not in capsys.readouterr().err
+    assert sent[0]["text"] == "هر روز یک صفحه کتاب بخوان"
+    records = read_all(path=tmp_path / "data" / "history.jsonl")
+    assert [record.note_id for record in records] == ["reading-1"]
+
+
 def test_main_says_in_persian_when_the_lists_directory_is_missing(
     monkeypatch, tmp_path, capsys
 ):
     monkeypatch.setenv("CRIER_BALE_BOT_TOKEN", "token")
     monkeypatch.setenv("CRIER_BALE_CHAT_ID", "7")
-    # A model key, so the line about the key is not the one under test.
-    monkeypatch.setenv("CRIER_OPEN_AI_API_KEY", "llm-key")
+    # Rewording is off, so no key is needed; the missing directory is the one
+    # thing that keeps the note from going.
 
     code = main([])
 

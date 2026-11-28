@@ -46,11 +46,12 @@ def build_producers(
     # registered at all rather than registering one that can only fail.
     if settings.changedetection_api_key:
         available[ChangedetectionWatcher.name] = ChangedetectionWatcher(settings, memory)
-    # Same for the two that need the model: no key, no rewording and no digest.
-    # The digest's feed is fetched at produce time, so an unreachable feed is not
-    # a reason to leave it out.
+    # The note producer needs no model: its bulletin carries the note's own text
+    # unless `CRIER_NOTE_REWORD` asks for an expansion. The digest does need one,
+    # so no key means no digest. The digest's feed is fetched at produce time, so
+    # an unreachable feed is not a reason to leave it out.
+    available[NoteProducer.name] = NoteProducer(settings)
     if settings.open_ai_api_key:
-        available[NoteProducer.name] = NoteProducer(settings)
         available[NewsProducer.name] = NewsProducer(settings, memory)
 
     if only is not None:

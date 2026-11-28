@@ -8,9 +8,10 @@
 ; OnCalendar lines below and run `systemctl --user daemon-reload`.
 ;
 ; Each run sends one note bulletin (milestones 2 and 3) at 07:07, seven minutes
-; past the hour so the model call starts after the other project's 07:00 news run
-; instead of landing with it. Still "once a day" (2026-11-05, down from 08:00 and
-; 20:00); the hour moved from 07:00 to 07:07 on 2026-11-27.
+; past the hour so a model call, when CRIER_NOTE_REWORD is on, starts after the
+; other project's 07:00 news run instead of landing with it. Still "once a day"
+; (2026-11-05, down from 08:00 and 20:00); the hour moved from 07:00 to 07:07 on
+; 2026-11-27.
 
 [Unit]
 Description=Run bale-crier once a day at 07:07

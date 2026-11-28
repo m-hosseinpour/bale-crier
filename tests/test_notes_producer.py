@@ -75,9 +75,10 @@ def test_a_missing_lists_directory_produces_nothing():
     assert calls == []
 
 
-def test_one_note_becomes_one_bulletin_carrying_its_identity():
+def test_one_note_becomes_one_bulletin_carrying_its_identity_and_its_own_text():
+    """The default: the note is the message, with no model call at all."""
     write_list("## reading-1\nهر روز یک صفحه کتاب بخوان\n")
-    complete, _ = stub_llm()
+    complete, calls = stub_llm()
 
     bulletins = NoteProducer(settings(), complete=complete).produce(NOW)
 
@@ -85,7 +86,30 @@ def test_one_note_becomes_one_bulletin_carrying_its_identity():
     assert bulletins[0].kind == "note"
     assert bulletins[0].note_id == "reading-1"
     assert bulletins[0].list_name == "reading"
+    assert bulletins[0].text == "هر روز یک صفحه کتاب بخوان"
+    assert calls == []
+
+
+def test_the_switch_sends_the_models_text():
+    write_list("## reading-1\nهر روز یک صفحه کتاب بخوان\n")
+    complete, calls = stub_llm("متن تازهٔ امروز")
+
+    bulletins = NoteProducer(settings(note_reword=True), complete=complete).produce(NOW)
+
     assert bulletins[0].text == "متن تازهٔ امروز"
+    assert len(calls) == 1
+
+
+def test_the_switch_without_a_key_still_sends_the_note_and_skips_the_model():
+    write_list("## reading-1\nهر روز یک صفحه کتاب بخوان\n")
+    complete, calls = stub_llm()
+
+    config = settings(note_reword=True, open_ai_api_key=None)
+
+    bulletins = NoteProducer(config, complete=complete).produce(NOW)
+
+    assert bulletins[0].text == "هر روز یک صفحه کتاب بخوان"
+    assert calls == []
 
 
 def test_the_model_is_given_the_note_and_the_wordings_already_sent():
@@ -93,7 +117,7 @@ def test_the_model_is_given_the_note_and_the_wordings_already_sent():
     record("reading-1", text="هر روز چند صفحه بخوان")
     complete, calls = stub_llm()
 
-    NoteProducer(settings(), complete=complete).produce(NOW)
+    NoteProducer(settings(note_reword=True), complete=complete).produce(NOW)
 
     prompt = "\n".join(message["content"] for message in calls[0]["messages"])
     assert "هر روز یک صفحه کتاب بخوان" in prompt
@@ -106,7 +130,7 @@ def test_only_the_newest_wordings_are_offered_to_the_model():
         record("reading-1", text=f"متن پیشین {i}", ts=NOW + timedelta(minutes=i))
     complete, calls = stub_llm()
 
-    NoteProducer(settings(), complete=complete).produce(NOW)
+    NoteProducer(settings(note_reword=True), complete=complete).produce(NOW)
 
     prompt = "\n".join(message["content"] for message in calls[0]["messages"])
     assert "متن پیشین 1" not in prompt
@@ -120,7 +144,7 @@ def test_a_failed_reword_still_produces_the_note_itself():
     def complete(messages, **kwargs):
         return LlmRead(text=None, error="HTTP 500")
 
-    bulletins = NoteProducer(settings(), complete=complete).produce(NOW)
+    bulletins = NoteProducer(settings(note_reword=True), complete=complete).produce(NOW)
 
     assert len(bulletins) == 1
     assert bulletins[0].text.startswith("هر روز یک صفحه کتاب بخوان")
